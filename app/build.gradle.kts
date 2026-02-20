@@ -56,14 +56,19 @@ dependencies {
     // hilt
     implementation(libs.bundles.hilt)
     ksp(libs.hilt.compiler)
+    // navigation
+    implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.navigation3.runtime)
     // app modules:
     // core
     implementation(project(":modules:core:network"))
     implementation(project(":modules:core:utils"))
     implementation(project(":modules:core:local-storage"))
+    implementation(project(":modules:core:navigation"))
     // shared
     implementation(project(":modules:shared:user"))
     implementation(project(":modules:shared:signing"))
     // features
     implementation(project(":modules:features:home"))
+    implementation(project(":modules:features:withdraw"))
 }

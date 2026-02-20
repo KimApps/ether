@@ -1,4 +1,7 @@
 [versions]
+compileSdk = "36"
+minSdk = "26"
+targetSdk = "36"
 agp = "8.13.2"
 walletkit = "1.6.6"
 kotlin = "2.2.21"
@@ -22,11 +25,9 @@ lifecycleViewmodel = "2.10.0"
 datastore = "1.2.0"
 ktorVersion = "3.3.3"
 kotlinxSerializationJson = "1.9.0"
-compileSdk = "36"
-minSdk = "26"
-targetSdk = "36"
 icons = "1.7.8"
 foundationLayout = "1.10.3"
+nav3Core = "1.0.1"
 
 [libraries]
 androidx-compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "icons" }
@@ -68,6 +69,8 @@ ktor-logging = { group = "io.ktor", name = "ktor-client-logging", version.ref = 
 ktor-auth = { group = "io.ktor", name = "ktor-client-auth", version.ref = "ktorVersion" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 androidx-compose-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayout" }
+androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "nav3Core" }
+androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref = "nav3Core" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

@@ -62,4 +62,5 @@ dependencies {
     // core:
     implementation(project(":modules:core:network"))
     implementation(project(":modules:core:local-storage"))
+    implementation(project(":modules:core:navigation"))
 }

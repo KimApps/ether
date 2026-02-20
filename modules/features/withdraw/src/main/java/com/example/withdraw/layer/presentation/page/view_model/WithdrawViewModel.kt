@@ -50,48 +50,66 @@ class WithdrawViewModel @Inject constructor(
             val amount = _state.value.amount.toDoubleOrNull() ?: 0.0
             if (amount == 0.0) {
                 _effect.send(WithdrawEffect.AmountNotValid)
-            } else {
-                _state.update { it.copy(isLoading = true, error = null) }
+                return@launch
+            }
+            _state.update { it.copy(isLoading = true, error = null) }
+            try {
+                // Get the quotation from the backend
                 val quotation = getQuotationUseCase(GetQuotationRequest(amount = amount))
+                // Navigate to Signing page
+                _effect.send(
+                    WithdrawEffect.NavigateToSigning(
+                        quotation.challenge,
+                        OperationType.WITHDRAWAL.name
+                    )
+                )
+                // This is the "Coordinator" call. It will suspend here
+                // until the user interacts with the SigningPage.
                 val signingResult = signingCoordinator.requestSignature(
                     SigningRequest(
                         challenge = quotation.challenge,
                         operationType = OperationType.WITHDRAWAL
                     )
                 )
-                when (signingResult) {
-                    is SigningResultEntity.Signed -> {
-                        val withdrawResult = submitWithdrawUseCase(
-                            SubmitWithdrawRequest(
-                                id = quotation.id,
-                                signature = signingResult.signature
-                            )
+                // Process the result
+                handleSigningResult(signingResult, quotation.id)
+            } catch (e: Exception) {
+                _state.update { it.copy(isLoading = false, error = e.message) }
+            }
+        }
+    }
+
+    private suspend fun handleSigningResult(result: SigningResultEntity, id: String) {
+        when (result) {
+            is SigningResultEntity.Signed -> {
+                val withdrawResult = submitWithdrawUseCase(
+                    SubmitWithdrawRequest(
+                        id = id,
+                        signature = result.signature
+                    )
+                )
+                if (withdrawResult) {
+                    _state.update {
+                        it.copy(
+                            isLoading = false,
+                            isSuccess = true,
+                            amount = "",
+                            error = null
                         )
-                        if (withdrawResult) {
-                            _state.update {
-                                it.copy(
-                                    isLoading = false,
-                                    isSuccess = true,
-                                    amount = "",
-                                    error = null
-                                )
-                            }
-                        } else {
-                            val errorMsg = "Transaction submission failed. Please try again."
-                            _state.update { it.copy(isLoading = false, error = errorMsg) }
-                        }
                     }
-
-                    is SigningResultEntity.Error -> {
-                        _state.update { it.copy(isLoading = false, error = signingResult.message) }
-                    }
-
-                    is SigningResultEntity.Cancelled -> {
-                        _state.update { it.copy(isLoading = false, error = "Signing cancelled") }
-                    }
+                } else {
+                    val errorMsg = "Transaction submission failed. Please try again."
+                    _state.update { it.copy(isLoading = false, error = errorMsg) }
                 }
             }
 
+            is SigningResultEntity.Error -> {
+                _state.update { it.copy(isLoading = false, error = result.message) }
+            }
+
+            is SigningResultEntity.Cancelled -> {
+                _state.update { it.copy(isLoading = false, error = "Signing cancelled") }
+            }
         }
     }
 }

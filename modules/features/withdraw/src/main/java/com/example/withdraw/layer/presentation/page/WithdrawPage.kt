@@ -31,6 +31,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.withdraw.layer.presentation.page.view_model.WithdrawEffect
 import com.example.withdraw.layer.presentation.page.view_model.WithdrawIntent
 import com.example.withdraw.layer.presentation.page.view_model.WithdrawViewModel
+import com.kimapps.signing.layer.domain.enums.OperationType
 
 /**
  * WithdrawPage - Main composable screen for handling fund withdrawal
@@ -48,8 +49,8 @@ import com.example.withdraw.layer.presentation.page.view_model.WithdrawViewModel
 @Composable
 fun WithdrawPage(
     viewModel: WithdrawViewModel = hiltViewModel(),
-    onNavigateToSigning: (String) -> Unit,
-    onWithdrawSuccess: () -> Unit
+    onNavigateToSigning: (String, String) -> Unit,
+    onBack: () -> Unit
 ) {
     // Collect the current state from the ViewModel as a Compose State
     val state by viewModel.state.collectAsState()
@@ -68,7 +69,7 @@ fun WithdrawPage(
                 }
                 // Navigate to signing screen with the challenge when transaction is ready
                 is WithdrawEffect.NavigateToSigning -> {
-                    onNavigateToSigning(effect.challenge)
+                    onNavigateToSigning(effect.challenge, effect.type)
                 }
             }
         }
@@ -80,7 +81,7 @@ fun WithdrawPage(
     // Triggers navigation callback when withdrawal completes successfully
     LaunchedEffect(state.isSuccess) {
         if (state.isSuccess) {
-            onWithdrawSuccess()
+            //TODO onWithdrawSuccess()
         }
     }
 

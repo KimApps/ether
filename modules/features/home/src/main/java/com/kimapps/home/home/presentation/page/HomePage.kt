@@ -1,4 +1,7 @@
-package com.kimapps.home.home.presentation.page.mvi
+package com.kimapps.home.home.presentation.page
 
-class HomePage {
+import androidx.compose.runtime.Composable
+
+@Composable
+fun HomePage(onWithdrawClick: () -> Unit) {
 }

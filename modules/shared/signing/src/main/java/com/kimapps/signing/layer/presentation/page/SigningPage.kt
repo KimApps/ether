@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.kimapps.signing.layer.domain.enums.OperationType
 import com.kimapps.signing.layer.presentation.page.view_model.SigningEffect
 import com.kimapps.signing.layer.presentation.page.view_model.SigningIntent
 import com.kimapps.signing.layer.presentation.page.view_model.SigningViewModel
@@ -37,14 +38,27 @@ import com.kimapps.signing.layer.presentation.page.view_model.SigningViewModel
 @Composable
 fun SigningPage(
     viewModel: SigningViewModel = hiltViewModel(),
-    onNavigateBack: () -> Unit
+    challenge: String,
+    operationType: OperationType,
+    onBack: () -> Unit
 ) {
     val state by viewModel.state.collectAsState()
+
+    //  Fire OnInit intent once when the page is first displayed
+    LaunchedEffect(challenge, operationType) {
+        viewModel.onIntent(
+            SigningIntent.OnInit(
+                challenge = challenge,
+                type = operationType
+            )
+        )
+    }
+
     // handle one time effects
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
-                is SigningEffect.Close -> onNavigateBack()
+                is SigningEffect.Close -> onBack()
                 else -> Unit
             }
         }
@@ -53,9 +67,12 @@ fun SigningPage(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Verify Transaction",
-                    style = MaterialTheme.typography.titleLarge ,
-                    ) },
+                title = {
+                    Text(
+                        "Verify Transaction",
+                        style = MaterialTheme.typography.titleLarge,
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { viewModel.onIntent(SigningIntent.OnCancelClicked) }) {
                         Icon(imageVector = Icons.Default.Close, contentDescription = "Cancel")
