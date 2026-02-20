@@ -40,7 +40,9 @@ class WithdrawViewModel @Inject constructor(
     }
 
     private fun onAmountChanged(amount: String) {
-        _state.update { it.copy(amount = amount) }
+        // Filter out non-digit characters
+        val filteredAmount = amount.trim().filter { it.isDigit() || it == '.' }
+        _state.update { it.copy(amount = filteredAmount) }
     }
 
     private fun onWithdraw() {
