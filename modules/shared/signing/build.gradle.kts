@@ -45,6 +45,8 @@ android {
 dependencies {
     implementation(libs.bundles.general)
     implementation(libs.androidx.junit)
+    implementation(libs.androidx.compose.material.icons.core)
+    implementation(libs.androidx.compose.foundation.layout)
     // compose
     androidTestImplementation(platform(libs.androidx.compose.bom))
     implementation(libs.bundles.compose)
@@ -52,6 +54,10 @@ dependencies {
     // hilt
     implementation(libs.bundles.hilt)
     ksp(libs.hilt.compiler)
+    // wallet connect
+    implementation(libs.walletkit)
+    implementation(libs.walletkit.android.core)
+
     // internal modules
     // core:
     implementation(project(":modules:core:network"))

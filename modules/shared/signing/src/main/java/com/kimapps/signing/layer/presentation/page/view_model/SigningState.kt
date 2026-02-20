@@ -6,5 +6,5 @@ data class SigningState(
     val challenge: String = "",
     val operationType: OperationType = OperationType.WITHDRAWAL,
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
 )

@@ -7,6 +7,7 @@ import com.kimapps.signing.layer.domain.entity_models.SigningResultEntity
 import com.kimapps.signing.layer.domain.enums.OperationType
 import com.kimapps.signing.layer.domain.request_models.SigningRequest
 import com.kimapps.signing.layer.domain.use_cases.SignChallengeUseCase
+import com.kimapps.signing.layer.domain.use_cases.SignWithWalletUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,7 +21,8 @@ import javax.inject.Inject
 @HiltViewModel
 class SigningViewModel @Inject constructor(
     private val coordinator: SigningCoordinator,
-    private val signUseCase: SignChallengeUseCase
+    private val signUseCase: SignChallengeUseCase,
+    private val signWithWalletUseCase: SignWithWalletUseCase
 ) : ViewModel() {
     // state flow to emit state changes
     private val _state = MutableStateFlow(SigningState())
@@ -40,6 +42,8 @@ class SigningViewModel @Inject constructor(
             is SigningIntent.OnInit -> onInit(intent.challenge, intent.type)
             SigningIntent.OnSignClicked -> onSign()
             SigningIntent.OnCancelClicked -> onCancel()
+            SigningIntent.OnConnectWalletClicked -> onConnectWallet()
+            SigningIntent.OnSignWithWalletClicked -> onSignWithWallet()
         }
     }
 
@@ -81,5 +85,31 @@ class SigningViewModel @Inject constructor(
             // close the screen
             _effect.send(SigningEffect.Close)
         }
+    }
+
+    private fun onConnectWallet() {
+        // notify UI to open Reown modal
+        viewModelScope.launch {
+            _effect.send(SigningEffect.OpenReownModal)
+        }
+    }
+
+    private fun onSignWithWallet() {
+        if (_state.value.isLoading) return
+        // challenge value for signing
+        val challenge = _state.value.challenge
+        viewModelScope.launch {
+            // show loading
+            _state.update { it.copy(isLoading = true) }
+            // sign the challenge
+            val result = signWithWalletUseCase(challenge = challenge)
+            // provide the result to the coordinator
+            coordinator.provideResult(challenge, result)
+            // hide loading and reset challenge
+            _state.update { it.copy(isLoading = false, challenge = "") }
+            // close the screen
+            _effect.send(SigningEffect.Close)
+        }
+
     }
 }

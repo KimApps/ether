@@ -1,5 +1,6 @@
 [versions]
 agp = "8.13.2"
+walletkit = "1.6.6"
 kotlin = "2.2.21"
 ksp = "2.3.3"
 coreKtx = "1.17.0"
@@ -24,9 +25,14 @@ kotlinxSerializationJson = "1.9.0"
 compileSdk = "36"
 minSdk = "26"
 targetSdk = "36"
+icons = "1.7.8"
+foundationLayout = "1.10.3"
 
 [libraries]
+androidx-compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-extended", version.ref = "icons" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+walletkit = { module = "com.reown:walletkit", version.ref = "walletkit" }
+walletkit-android-core = { module = "com.reown:android-core", version.ref = "walletkit" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
@@ -61,6 +67,7 @@ ktor-serialization = { group = "io.ktor", name = "ktor-serialization-kotlinx-jso
 ktor-logging = { group = "io.ktor", name = "ktor-client-logging", version.ref = "ktorVersion" }
 ktor-auth = { group = "io.ktor", name = "ktor-client-auth", version.ref = "ktorVersion" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
+androidx-compose-foundation-layout = { group = "androidx.compose.foundation", name = "foundation-layout", version.ref = "foundationLayout" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

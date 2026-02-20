@@ -6,4 +6,6 @@ sealed class SigningIntent {
     data class OnInit(val challenge: String, val type: OperationType) : SigningIntent()
     object OnSignClicked : SigningIntent()
     object OnCancelClicked : SigningIntent()
+    object OnConnectWalletClicked : SigningIntent()
+    object OnSignWithWalletClicked : SigningIntent()
 }
