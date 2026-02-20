@@ -36,3 +36,4 @@ include(":modules:features:home")
 
 include(":modules:shared:ui")
 include(":modules:shared:signing")
+include(":modules:features:withdraw")
