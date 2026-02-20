@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.kimapps.setupproject"
+    namespace = "com.kimapps.ether"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     defaultConfig {
-        applicationId = "com.kimapps.setupproject"
+        applicationId = "com.kimapps.ether"
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
         versionCode = 1

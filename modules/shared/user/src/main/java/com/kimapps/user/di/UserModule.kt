@@ -1,8 +1,8 @@
 package com.kimapps.user.di
 
-import androidx.test.espresso.core.internal.deps.dagger.Binds
 import com.kimapps.user.layer.data.repository.UserRepositoryImpl
 import com.kimapps.user.layer.domain.repository.UserRepository
+import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent

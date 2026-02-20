@@ -1,8 +1,8 @@
 package com.kimapps.signing.di
 
-import androidx.test.espresso.core.internal.deps.dagger.Binds
 import com.kimapps.signing.layer.data.repository.SigningRepositoryImpl
 import com.kimapps.signing.layer.domain.repository.SigningRepository
+import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent

@@ -1,8 +1,8 @@
 package com.kimapps.home.di
 
-import androidx.test.espresso.core.internal.deps.dagger.Binds
 import com.kimapps.home.home.data.repository.HomeRepositoryImpl
 import com.kimapps.home.home.domain.repository.HomeRepository
+import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
