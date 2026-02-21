@@ -1,21 +1,58 @@
 package com.kimapps.signing.layer.presentation.page
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import SigningApprovalDialog
+import android.content.Intent
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.kimapps.signing.layer.domain.enums.OperationType
+import com.kimapps.signing.layer.presentation.components.ChallengeCard
+import com.kimapps.signing.layer.presentation.components.SigningHeader
+import com.kimapps.signing.layer.presentation.components.WalletConnectSection
 import com.kimapps.signing.layer.presentation.page.view_model.SigningEffect
 import com.kimapps.signing.layer.presentation.page.view_model.SigningIntent
 import com.kimapps.signing.layer.presentation.page.view_model.SigningViewModel
 
+/**
+ * SigningPage - The screen responsible for signing a transaction challenge.
+ *
+ * Supports two signing methods:
+ * 1. **Passkey** – signs directly on the device using biometrics / device credentials.
+ * 2. **WalletConnect** – pairs with an external EOA wallet (e.g. MetaMask) via a URI,
+ *    waits for the dApp to send a `personal_sign` session request, then approves it.
+ *
+ * Flow:
+ *  1. Screen opens with a [challenge] string and an [operationType] (e.g. WITHDRAWAL).
+ *  2. User chooses a signing method.
+ *  3. On success the result is delivered through SigningCoordinator and the screen closes.
+ *  4. On cancel/back the [onBack] callback is invoked.
+ *
+ * @param challenge    The raw challenge string that must be signed.
+ * @param operationType The type of operation being authorised (used for display only).
+ * @param onBack       Called when the screen should be dismissed (success or cancel).
+ * @param viewModel    Hilt-injected ViewModel; can be overridden in tests.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SigningPage(
@@ -24,33 +61,114 @@ fun SigningPage(
     onBack: () -> Unit,
     viewModel: SigningViewModel = hiltViewModel()
 ) {
+    // Context is needed to launch an external browser intent for the WalletConnect test dApp
+    val context = LocalContext.current
+
+    // Collect the full UI state from the ViewModel as Compose State.
+    // Any change to the state triggers a recomposition of the affected subtree.
     val state by viewModel.state.collectAsState()
 
+    // ─────────────────────────────────────────────
+    // Side-effects
+    // ─────────────────────────────────────────────
+
     // Initialize the ViewModel with the route data
+    // Re-runs only when challenge or operationType changes (i.e. on first composition).
     LaunchedEffect(challenge, operationType) {
         viewModel.onIntent(SigningIntent.OnInit(challenge, operationType))
     }
 
-    // Handle one-time side effects
+    // Handle one-time side effects emitted through the effect Channel.
+    // Using Unit as the key means this collector is set up once and lives
+    // for the full lifetime of the composable.
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
+                // Close this screen – triggered after a successful sign or a cancel
                 is SigningEffect.Close -> onBack()
             }
         }
     }
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Authorize Operation") },
-                navigationIcon = {
-                    IconButton(onClick = { viewModel.onIntent(SigningIntent.OnCancelClicked) }) {
-                        Icon(Icons.Default.Close, contentDescription = "Cancel")
-                    }
+    // ─────────────────────────────────────────────
+    // movableContentOf blocks
+    //
+    // movableContentOf lets Compose reuse the internal state and layout
+    // nodes of a composable when it moves position in the tree, avoiding
+    // a full destroy-and-recreate on each recomposition.
+    // Each block is keyed on the state slice it depends on so it is only
+    // re-created when its inputs actually change.
+    // ─────────────────────────────────────────────
+
+    // Header showing the operation name (e.g. "WITHDRAWAL").
+    // Re-created only when operationType changes.
+    val signingHeader = remember(state.operationType) {
+        movableContentOf { SigningHeader(state.operationType.name) }
+    }
+
+    // Card showing a truncated preview of the challenge to be signed.
+    // Re-created only when the challenge string changes.
+    val challengeCard = remember(state.challenge) {
+        movableContentOf { ChallengeCard(state.challenge) }
+    }
+
+    // WalletConnect section – handles the full pairing + connection UI:
+    //   • "Connect EOA Wallet" button  → shows the URI input field
+    //   • URI input + "Pair" button    → triggers CoreClient.Pairing.pair()
+    //   • "Sign with Connected Wallet" → dispatches ApproveWalletSign intent
+    //   • "Open Test dApp" link        → launches the WalletConnect demo site
+    //     so developers can generate a test session request without a real dApp.
+    // Re-created when connection state, pairing visibility, or URI text changes.
+    val walletSection = remember(
+        state.isWalletConnected,
+        state.showPairingInput,
+        state.pairingUri
+    ) {
+        movableContentOf {
+            WalletConnectSection(
+                isConnected = state.isWalletConnected,
+                showPairingInput = state.showPairingInput,
+                pairingUri = state.pairingUri,
+                onConnectClick = { viewModel.onIntent(SigningIntent.OnSignWithWalletClicked) },
+                onUriChanged = { viewModel.onIntent(SigningIntent.OnPairingUriChanged(it)) },
+                onPairClick = { viewModel.onIntent(SigningIntent.OnPairClicked) },
+                onOpenBrowserClick = {
+                    // Open the official WalletConnect test dApp in the browser.
+                    // The dApp lets you send a personal_sign request to this wallet,
+                    // which will arrive as a SessionRequest and show the approval dialog.
+                    val intent = Intent(
+                        Intent.ACTION_VIEW,
+                        "https://react-app.walletconnect.com/".toUri()
+                    )
+                    context.startActivity(intent)
                 }
             )
         }
+    }
+
+    // Approval dialog – shown when a WalletConnect session request arrives from the dApp.
+    // The user must explicitly Approve or Reject before the dialog is dismissed.
+    // Re-created only when the pending request object changes (null = hidden).
+    val approvalDialog = remember(state.pendingRequest) {
+        movableContentOf {
+            state.pendingRequest?.let {
+                SigningApprovalDialog(
+                    challenge = state.challenge,
+                    // Approve: signs with a mock signature and notifies the dApp via WalletKit
+                    onApprove = { viewModel.onIntent(SigningIntent.ApproveWalletSign) },
+                    // Reject: sends an error response to the dApp and clears the pending request
+                    onReject = { viewModel.onIntent(SigningIntent.RejectWalletSign) }
+                )
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────
+    // UI Layout
+    // ─────────────────────────────────────────────
+
+    Scaffold(
+        topBar = { /* ... keep top bar ... */ }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -60,136 +178,36 @@ fun SigningPage(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Header Info
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = state.operationType.name,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-                Text(
-                    text = "Verify the details below to sign",
-                    style = MaterialTheme.typography.bodyMedium
-                )
-            }
+            // Operation title (e.g. "WITHDRAWAL")
+            signingHeader()
 
-            // Challenge Box
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                )
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("CHALLENGE", style = MaterialTheme.typography.labelSmall)
-                    Text(
-                        text = state.challenge,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                    )
-                }
-            }
+            // Truncated challenge preview so the user knows what they are signing
+            challengeCard()
 
+            // Push action buttons to the bottom of the screen
             Spacer(modifier = Modifier.weight(1f))
 
             if (state.isLoading) {
+                // Shown while the passkey signing coroutine or network call is in progress
                 CircularProgressIndicator()
-                Text("Processing...", style = MaterialTheme.typography.bodySmall)
             } else {
-                // Main Sign Button (Passkey Mock)
+                // Primary action: sign using the device Passkey (biometrics)
                 Button(
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
                     onClick = { viewModel.onIntent(SigningIntent.OnSignClicked) }
-                ) {
-                    Text("Sign with Passkey")
-                }
+                ) { Text("Sign with Passkey") }
 
-                // EOA / WalletConnect Section
-                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
-
-                if (state.isWalletConnected) {
-                    // State: Wallet is paired and ready
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
-                        )
-                    ) {
-                        Text(
-                            text = "Wallet Connected ✅\nTrigger sign request from the Dapp",
-                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                } else if (state.showPairingInput) {
-                    // State: Manual Pairing Entry
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedTextField(
-                            value = state.pairingUri,
-                            onValueChange = { viewModel.onIntent(SigningIntent.OnPairingUriChanged(it)) },
-                            label = { Text("WalletConnect URI (wc:...)") },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("Paste URI from Dapp") }
-                        )
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedButton(
-                                onClick = { /* You could add a 'Back' intent here */ },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Back")
-                            }
-                            Button(
-                                onClick = { viewModel.onIntent(SigningIntent.OnPairClicked) },
-                                modifier = Modifier.weight(1f),
-                                enabled = state.pairingUri.startsWith("wc:")
-                            ) {
-                                Text("Connect")
-                            }
-                        }
-                    }
-                } else {
-                    // State: Default/Disconnected
-                    OutlinedButton(
-                        modifier = Modifier.fillMaxWidth().height(56.dp),
-                        onClick = { viewModel.onIntent(SigningIntent.OnSignWithWalletClicked) }
-                    ) {
-                        Text("Connect EOA Wallet")
-                    }
-                }
+                // Secondary action group: WalletConnect pairing + signing controls
+                walletSection()
             }
         }
-    }
 
-    // --- WalletConnect Request Dialog ---
-    // This pops up when WalletConnectManager receives an 'onSessionRequest'
-    if (state.pendingRequest != null) {
-        AlertDialog(
-            onDismissRequest = { viewModel.onIntent(SigningIntent.RejectWalletSign) },
-            title = { Text("Confirm Signature") },
-            text = {
-                Column {
-                    Text("An external application is requesting a signature for this transaction.")
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        "Challenge: ${state.challenge.take(20)}...",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            },
-            confirmButton = {
-                Button(onClick = { viewModel.onIntent(SigningIntent.ApproveWalletSign) }) {
-                    Text("Approve")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.onIntent(SigningIntent.RejectWalletSign) }) {
-                    Text("Reject")
-                }
-            }
-        )
+        // Approval dialog is rendered outside the Column so it overlays the entire Scaffold.
+        // Only shown when the dApp has sent a pending session request.
+        if (state.pendingRequest != null) {
+            approvalDialog()
+        }
     }
 }
