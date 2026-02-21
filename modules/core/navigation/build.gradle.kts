@@ -37,6 +37,8 @@ android {
 }
 
 dependencies {
+    implementation(libs.bundles.general)
+    implementation(libs.androidx.junit)
     // navigation 3
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.kotlinx.serialization.json)

@@ -14,8 +14,4 @@ sealed interface AppRoute {
         val challenge: String,
         val operationType: String
     ) : AppRoute
-
-    @Serializable
-    data object SuccessWithdraw : AppRoute
-
 }

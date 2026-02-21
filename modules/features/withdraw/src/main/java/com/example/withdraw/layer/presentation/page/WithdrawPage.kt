@@ -8,9 +8,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -31,7 +35,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.example.withdraw.layer.presentation.page.view_model.WithdrawEffect
 import com.example.withdraw.layer.presentation.page.view_model.WithdrawIntent
 import com.example.withdraw.layer.presentation.page.view_model.WithdrawViewModel
-import com.kimapps.signing.layer.domain.enums.OperationType
 
 /**
  * WithdrawPage - Main composable screen for handling fund withdrawal
@@ -43,7 +46,6 @@ import com.kimapps.signing.layer.domain.enums.OperationType
  * @param viewModel The ViewModel that manages the withdrawing state and business logic
  * @param onNavigateToSigning Callback invoked when user needs to sign the transaction,
  *                           receives the challenge string for signing
- * @param onWithdrawSuccess Callback invoked when withdrawal completes successfully
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,17 +73,13 @@ fun WithdrawPage(
                 is WithdrawEffect.NavigateToSigning -> {
                     onNavigateToSigning(effect.challenge, effect.type)
                 }
+                is WithdrawEffect.WithdrawSuccess -> {
+                    snackbarHostState.showSnackbar(
+                        message = "Withdrawal submitted successfully!",
+                        withDismissAction = true
+                    )
+                }
             }
-        }
-    }
-
-    // Side effect to handle successful withdrawal
-    // Triggers navigation callback when withdrawal completes successfully
-    // Side effect to handle successful withdrawal
-    // Triggers navigation callback when withdrawal completes successfully
-    LaunchedEffect(state.isSuccess) {
-        if (state.isSuccess) {
-            //TODO onWithdrawSuccess()
         }
     }
 
@@ -91,7 +89,15 @@ fun WithdrawPage(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Withdraw Funds") }
+                title = { Text("Withdraw Funds") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBackIosNew,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
             )
         }
     ) { padding ->

@@ -97,6 +97,8 @@ class WithdrawViewModel @Inject constructor(
                             error = null
                         )
                     }
+                    // Send success effect to notify user of successful withdrawal
+                    _effect.send(WithdrawEffect.WithdrawSuccess)
                 } else {
                     val errorMsg = "Transaction submission failed. Please try again."
                     _state.update { it.copy(isLoading = false, error = errorMsg) }
