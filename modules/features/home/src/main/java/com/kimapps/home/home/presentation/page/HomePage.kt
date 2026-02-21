@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kimapps.home.home.presentation.page.view_model.HomeEffect
 import com.kimapps.home.home.presentation.page.view_model.HomeIntent
 import com.kimapps.home.home.presentation.page.view_model.HomeViewModel
@@ -38,7 +39,7 @@ fun HomePage(
     viewModel: HomeViewModel = hiltViewModel(),
     onWithdrawClick: () -> Unit
 ) {
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->

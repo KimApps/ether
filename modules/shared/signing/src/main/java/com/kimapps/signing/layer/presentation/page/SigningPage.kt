@@ -26,6 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kimapps.signing.layer.domain.enums.OperationType
 import com.kimapps.signing.layer.presentation.components.ChallengeCard
 import com.kimapps.signing.layer.presentation.components.SigningHeader
@@ -66,7 +67,7 @@ fun SigningPage(
 
     // Collect the full UI state from the ViewModel as Compose State.
     // Any change to the state triggers a recomposition of the affected subtree.
-    val state by viewModel.state.collectAsState()
+    val state by viewModel.state.collectAsStateWithLifecycle()
 
     // ─────────────────────────────────────────────
     // Side-effects

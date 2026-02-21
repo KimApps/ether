@@ -29,4 +29,10 @@ class HomeViewModel @Inject constructor() : ViewModel() {
             _effect.send(HomeEffect.NavigateToWithdraw)
         }
     }
+
+    override fun onCleared() {
+        super.onCleared()
+        // close channel to prevent resource leaks
+        _effect.close()
+    }
 }

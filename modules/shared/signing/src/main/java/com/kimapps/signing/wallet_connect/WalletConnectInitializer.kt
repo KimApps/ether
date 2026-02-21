@@ -58,6 +58,7 @@ class WalletConnectInitializer(
 
         // Project ID obtained from https://dashboard.walletconnect.com
         // Identifies this app on the WalletConnect relay network
+        // TODO: Move to local.properties + BuildConfig before production.
         val projectId = "d69d95933ce80c7994eb21fe9d31eb74"
 
         // Metadata shown to the dApp when it receives the session proposal,

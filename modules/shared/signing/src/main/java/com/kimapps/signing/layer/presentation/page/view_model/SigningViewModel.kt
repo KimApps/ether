@@ -71,8 +71,10 @@ class SigningViewModel @Inject constructor(
         // WalletConnectSection automatically switches between the pairing input
         // and the "Wallet Connected" confirmation card.
         viewModelScope.launch {
-            walletManager.isConnected.collect { connected ->
-                _state.update { it.copy(isWalletConnected = connected) }
+            runCatching {
+                walletManager.isConnected.collect { connected ->
+                    _state.update { it.copy(isWalletConnected = connected) }
+                }
             }
         }
 
@@ -230,19 +232,40 @@ class SigningViewModel @Inject constructor(
         val challenge = _state.value.challenge
 
         viewModelScope.launch {
-            // Mock signature — in production this would be a real ECDSA signature
-            // produced by the connected EOA wallet's private key
-            val mockSignature = "0x-EOA-MOCK-SIG-${challenge.take(10)}"
+            _state.update { it.copy(isLoading = true) }
+            try {
+                // Mock signature — in production this would be a real ECDSA signature
+                // produced by the connected EOA wallet's private key
+                val mockSignature = "0x-EOA-MOCK-SIG-${challenge.take(10)}"
 
-            // Respond to the dApp so it can proceed with its own transaction flow
-            walletManager.approveRequest(request, mockSignature)
+                // Respond to the dApp so it can proceed with its own transaction flow
+                walletManager.approveRequest(request, mockSignature)
 
-            // Deliver the result to SigningCoordinator to unblock the withdraw flow
-            coordinator.provideResult(challenge, SigningResultEntity.Signed(mockSignature))
+                // Deliver the result to SigningCoordinator to unblock the withdraw flow
+                coordinator.provideResult(challenge, SigningResultEntity.Signed(mockSignature))
 
-            // Clear the dialog and challenge, then emit Close to pop this screen
-            _state.update { it.copy(pendingRequest = null, challenge = "") }
-            _effect.send(SigningEffect.Close)
+                // Clear the dialog and challenge, then emit Close to pop this screen
+                _state.update { it.copy(pendingRequest = null, challenge = "") }
+                _effect.send(SigningEffect.Close)
+            } catch (e: Exception) {
+                coordinator.provideResult(
+                    challenge,
+                    SigningResultEntity.Error(e.message ?: "Unknown Error")
+                )
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "Wallet signing failed: ${e.localizedMessage}"
+                    )
+                }
+            }
+
         }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        // close channel to prevent resource leaks
+        _effect.close()
     }
 }
