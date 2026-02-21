@@ -56,6 +56,7 @@ dependencies {
     implementation(project(":modules:core:network"))
     implementation(project(":modules:core:local-storage"))
     implementation(project(":modules:core:navigation"))
+    implementation(project(":modules:core:error-logger"))
     // shared
     implementation(project(":modules:shared:signing"))
 }

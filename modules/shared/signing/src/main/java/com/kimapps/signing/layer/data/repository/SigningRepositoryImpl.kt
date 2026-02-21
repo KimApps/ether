@@ -18,10 +18,4 @@ class SigningRepositoryImpl @Inject constructor(
         return signingResultMapper.map(result)
 
     }
-
-    override suspend fun signWithWallet(challenge: String): SigningResultEntity {
-        val result = remote.signWithWallet(challenge)
-        // map result to entity
-        return signingResultMapper.map(result)
-    }
 }

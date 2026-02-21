@@ -24,35 +24,4 @@ class SigningRemoteDS @Inject constructor() {
         }
         return SigningResultDto(signature)
     }
-
-    suspend fun signWithWallet(challenge: String): SigningResultDto = suspendCancellableCoroutine { continuation ->
-        // 1. Find the active session to respond to
-        val activeSession = WalletKit.getListOfActiveSessions().firstOrNull()
-            ?: run {
-                continuation.resumeWithException(IllegalStateException("No active session. Please connect first."))
-                return@suspendCancellableCoroutine
-            }
-
-        val mockSignature = "0x_walletkit_signed_${challenge.take(8)}"
-
-        // 2. Correct Reown Params (Wallet.Params, NOT com.google...)
-        val response = Wallet.Params.SessionRequestResponse(
-            sessionTopic = activeSession.topic,
-            jsonRpcResponse = Wallet.Model.JsonRpcResponse.JsonRpcResult(
-                id = 1L, // Note: In a real app, this matches the SessionRequest ID
-                result = mockSignature
-            )
-        )
-
-        // 3. Respond via WalletKit
-        WalletKit.respondSessionRequest(
-            params = response,
-            onSuccess = {
-                continuation.resume(SigningResultDto(mockSignature))
-            },
-            onError = { error ->
-                continuation.resumeWithException(error.throwable)
-            }
-        )
-    }
 }
