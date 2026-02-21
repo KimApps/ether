@@ -7,7 +7,8 @@ import com.kimapps.signing.layer.domain.entity_models.SigningResultEntity
 import com.kimapps.signing.layer.domain.enums.OperationType
 import com.kimapps.signing.layer.domain.request_models.SigningRequest
 import com.kimapps.signing.layer.domain.use_cases.SignChallengeUseCase
-import com.kimapps.signing.layer.domain.use_cases.SignWithWalletUseCase
+import com.kimapps.signing.wallet_connect.WalletConnectInitializer
+import com.kimapps.signing.wallet_connect.WalletConnectManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,8 +23,10 @@ import javax.inject.Inject
 class SigningViewModel @Inject constructor(
     private val coordinator: SigningCoordinator,
     private val signUseCase: SignChallengeUseCase,
-    private val signWithWalletUseCase: SignWithWalletUseCase
+    walletConnectInitializer: WalletConnectInitializer,
+    private val walletManager: WalletConnectManager,
 ) : ViewModel() {
+
     // state flow to emit state changes
     private val _state = MutableStateFlow(SigningState())
 
@@ -36,14 +39,36 @@ class SigningViewModel @Inject constructor(
     // for external classes to subscribe to the channel
     val effect = _effect.receiveAsFlow()
 
+    init {
+        // initialize wallet connect
+        walletConnectInitializer.init()
+        // Observe connection status to update UI
+        viewModelScope.launch {
+            walletManager.isConnected.collect { connected ->
+                _state.update { it.copy(isWalletConnected = connected) }
+            }
+        }
+
+        // Observe incoming signing requests from the Dapp/WalletConnect
+        viewModelScope.launch {
+            walletManager.sessionRequests.collect { request ->
+                // state to show an "Approve/Reject" dialog
+                _state.update { it.copy(pendingRequest = request) }
+            }
+        }
+    }
+
     // handle user actions
     fun onIntent(intent: SigningIntent) {
         when (intent) {
             is SigningIntent.OnInit -> onInit(intent.challenge, intent.type)
-            SigningIntent.OnSignClicked -> onSign()
-            SigningIntent.OnCancelClicked -> onCancel()
-            SigningIntent.OnConnectWalletClicked -> onConnectWallet()
-            SigningIntent.OnSignWithWalletClicked -> onSignWithWallet()
+            is SigningIntent.OnSignClicked -> onSign()
+            is SigningIntent.OnCancelClicked -> onCancel()
+            is SigningIntent.OnSignWithWalletClicked -> onSignWithWallet()
+            is SigningIntent.OnPairingUriChanged -> onPairingUriChanged(intent.uri)
+            is SigningIntent.OnPairClicked -> onPair()
+            is SigningIntent.RejectWalletSign -> onWalletSignRejected()
+            is SigningIntent.ApproveWalletSign -> onWalletSignApproved()
         }
     }
 
@@ -87,29 +112,52 @@ class SigningViewModel @Inject constructor(
         }
     }
 
-    private fun onConnectWallet() {
-        // notify UI to open Reown modal
-        viewModelScope.launch {
-            _effect.send(SigningEffect.OpenReownModal)
-        }
+    private fun onSignWithWallet() {
+        // Show the pairing URI input so user can paste a WalletConnect URI
+        _state.update { it.copy(showPairingInput = true, error = null) }
     }
 
-    private fun onSignWithWallet() {
+    private fun onPairingUriChanged(uri: String) {
+        _state.update { it.copy(pairingUri = uri) }
+    }
+    private fun onPair() {
+        // Now use the state's URI to pair
+        walletManager.pair(_state.value.pairingUri)
+        _state.update { it.copy(showPairingInput = false) }
+    }
+
+    private fun onWalletSignRejected() {
+        val request = _state.value.pendingRequest
+        if (request != null) {
+            walletManager.rejectRequest(request)
+        }
+        _state.update { it.copy(pendingRequest = null) }
+    }
+    private fun onWalletSignApproved() {
+        // 1. Validation check
         if (_state.value.isLoading) return
-        // challenge value for signing
+        val request = _state.value.pendingRequest ?: return
         val challenge = _state.value.challenge
+
         viewModelScope.launch {
-            // show loading
-            _state.update { it.copy(isLoading = true) }
-            // sign the challenge
-            val result = signWithWalletUseCase(challenge = challenge)
-            // provide the result to the coordinator
-            coordinator.provideResult(challenge, result)
-            // hide loading and reset challenge
-            _state.update { it.copy(isLoading = false, challenge = "") }
-            // close the screen
+            // 2. Generate the mock signature
+            val mockSignature = "0x-EOA-MOCK-SIG-${challenge.take(10)}"
+
+            // 3. Respond to the external Dapp (WalletConnect)
+            walletManager.approveRequest(request, mockSignature)
+
+            // 4. Provide the result to your app's coordinator
+            // Matches the 'onSign' logic: provideResult(challenge, result)
+            coordinator.provideResult(
+                challenge,
+                SigningResultEntity.Signed(mockSignature)
+            )
+
+            // 5. Update state and clean up
+            _state.update { it.copy(pendingRequest = null, challenge = "") }
+
+            // 6. Close the screen using your existing _effect channel
             _effect.send(SigningEffect.Close)
         }
-
     }
 }
