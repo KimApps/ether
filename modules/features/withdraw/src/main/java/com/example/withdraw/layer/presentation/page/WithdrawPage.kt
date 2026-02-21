@@ -73,6 +73,12 @@ fun WithdrawPage(
                 is WithdrawEffect.NavigateToSigning -> {
                     onNavigateToSigning(effect.challenge, effect.type)
                 }
+                is WithdrawEffect.WithdrawCancelled -> {
+                    snackbarHostState.showSnackbar(
+                        message = "Signing cancelled",
+                        withDismissAction = true
+                    )
+                }
                 is WithdrawEffect.WithdrawSuccess -> {
                     snackbarHostState.showSnackbar(
                         message = "Withdrawal submitted successfully!",

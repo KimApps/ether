@@ -1,30 +1,13 @@
 package com.kimapps.signing.layer.presentation.page
 
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -36,45 +19,34 @@ import com.kimapps.signing.layer.presentation.page.view_model.SigningViewModel
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SigningPage(
-    viewModel: SigningViewModel = hiltViewModel(),
     challenge: String,
     operationType: OperationType,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    viewModel: SigningViewModel = hiltViewModel()
 ) {
     val state by viewModel.state.collectAsState()
 
-    //  Fire OnInit intent once when the page is first displayed
+    // Initialize the ViewModel with the route data
     LaunchedEffect(challenge, operationType) {
-        viewModel.onIntent(
-            SigningIntent.OnInit(
-                challenge = challenge,
-                type = operationType
-            )
-        )
+        viewModel.onIntent(SigningIntent.OnInit(challenge, operationType))
     }
 
-    // handle one time effects
+    // Handle one-time side effects
     LaunchedEffect(Unit) {
         viewModel.effect.collect { effect ->
             when (effect) {
                 is SigningEffect.Close -> onBack()
-                else -> Unit
             }
         }
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "Verify Transaction",
-                        style = MaterialTheme.typography.titleLarge,
-                    )
-                },
+            CenterAlignedTopAppBar(
+                title = { Text("Authorize Operation") },
                 navigationIcon = {
                     IconButton(onClick = { viewModel.onIntent(SigningIntent.OnCancelClicked) }) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Cancel")
+                        Icon(Icons.Default.Close, contentDescription = "Cancel")
                     }
                 }
             )
@@ -86,53 +58,138 @@ fun SigningPage(
                 .padding(padding)
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+            verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Text(
-                text = "Signing ${state.operationType.name}",
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-            Text(
-                text = "Challenge ${state.challenge.take(10)}...",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.height(32.dp))
+            // Header Info
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = state.operationType.name,
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Verify the details below to sign",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+
+            // Challenge Box
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                )
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("CHALLENGE", style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        text = state.challenge,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.weight(1f))
+
             if (state.isLoading) {
                 CircularProgressIndicator()
-                Text(
-                    "Signing in progress...",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                Text("Processing...", style = MaterialTheme.typography.bodySmall)
             } else {
+                // Main Sign Button (Passkey Mock)
                 Button(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = {
-                        viewModel.onIntent(SigningIntent.OnSignClicked)
-                    }
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    onClick = { viewModel.onIntent(SigningIntent.OnSignClicked) }
                 ) {
                     Text("Sign with Passkey")
                 }
-                OutlinedButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = {}
-                ) {
-                    Text("Sign with Wallet")
+
+                // EOA / WalletConnect Section
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+
+                if (state.isWalletConnected) {
+                    // State: Wallet is paired and ready
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                        )
+                    ) {
+                        Text(
+                            text = "Wallet Connected ✅\nTrigger sign request from the Dapp",
+                            modifier = Modifier.padding(16.dp).fillMaxWidth(),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                } else if (state.showPairingInput) {
+                    // State: Manual Pairing Entry
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OutlinedTextField(
+                            value = state.pairingUri,
+                            onValueChange = { viewModel.onIntent(SigningIntent.OnPairingUriChanged(it)) },
+                            label = { Text("WalletConnect URI (wc:...)") },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Paste URI from Dapp") }
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = { /* You could add a 'Back' intent here */ },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("Back")
+                            }
+                            Button(
+                                onClick = { viewModel.onIntent(SigningIntent.OnPairClicked) },
+                                modifier = Modifier.weight(1f),
+                                enabled = state.pairingUri.startsWith("wc:")
+                            ) {
+                                Text("Connect")
+                            }
+                        }
+                    }
+                } else {
+                    // State: Default/Disconnected
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth().height(56.dp),
+                        onClick = { viewModel.onIntent(SigningIntent.OnSignWithWalletClicked) }
+                    ) {
+                        Text("Connect EOA Wallet")
+                    }
                 }
             }
-
-            state.error?.let {
-                Text(
-                    it,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center,
-                )
-            }
         }
-
     }
 
+    // --- WalletConnect Request Dialog ---
+    // This pops up when WalletConnectManager receives an 'onSessionRequest'
+    if (state.pendingRequest != null) {
+        AlertDialog(
+            onDismissRequest = { viewModel.onIntent(SigningIntent.RejectWalletSign) },
+            title = { Text("Confirm Signature") },
+            text = {
+                Column {
+                    Text("An external application is requesting a signature for this transaction.")
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        "Challenge: ${state.challenge.take(20)}...",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            },
+            confirmButton = {
+                Button(onClick = { viewModel.onIntent(SigningIntent.ApproveWalletSign) }) {
+                    Text("Approve")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onIntent(SigningIntent.RejectWalletSign) }) {
+                    Text("Reject")
+                }
+            }
+        )
+    }
 }

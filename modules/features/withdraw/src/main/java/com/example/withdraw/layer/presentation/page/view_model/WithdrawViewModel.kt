@@ -110,7 +110,8 @@ class WithdrawViewModel @Inject constructor(
             }
 
             is SigningResultEntity.Cancelled -> {
-                _state.update { it.copy(isLoading = false, error = "Signing cancelled") }
+                _effect.send(WithdrawEffect.WithdrawCancelled)
+                _state.update { it.copy(isLoading = false) }
             }
         }
     }

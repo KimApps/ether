@@ -4,5 +4,6 @@ sealed class WithdrawEffect {
     data class NavigateToSigning(val challenge: String, val type: String) : WithdrawEffect()
     object AmountNotValid : WithdrawEffect()
     object WithdrawSuccess : WithdrawEffect()
+    object WithdrawCancelled : WithdrawEffect()
 }
 
