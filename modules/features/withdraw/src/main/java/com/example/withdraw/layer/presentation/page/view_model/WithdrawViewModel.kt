@@ -1,5 +1,6 @@
 package com.example.withdraw.layer.presentation.page.view_model
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.withdraw.layer.domain.request_models.GetQuotationRequest
@@ -82,26 +83,30 @@ class WithdrawViewModel @Inject constructor(
     private suspend fun handleSigningResult(result: SigningResultEntity, id: String) {
         when (result) {
             is SigningResultEntity.Signed -> {
-                val withdrawResult = submitWithdrawUseCase(
-                    SubmitWithdrawRequest(
-                        id = id,
-                        signature = result.signature
-                    )
-                )
-                if (withdrawResult) {
-                    _state.update {
-                        it.copy(
-                            isLoading = false,
-                            isSuccess = true,
-                            amount = "",
-                            error = null
+                try {
+                    val withdrawResult = submitWithdrawUseCase(
+                        SubmitWithdrawRequest(
+                            id = id,
+                            signature = result.signature
                         )
+                    )
+                    if (withdrawResult) {
+                        _state.update {
+                            it.copy(
+                                isLoading = false,
+                                isSuccess = true,
+                                amount = "",
+                                error = null
+                            )
+                        }
+                        // Send success effect to notify user of successful withdrawal
+                        _effect.send(WithdrawEffect.WithdrawSuccess)
+                    } else {
+                        val errorMsg = "Transaction submission failed. Please try again."
+                        _state.update { it.copy(isLoading = false, error = errorMsg) }
                     }
-                    // Send success effect to notify user of successful withdrawal
-                    _effect.send(WithdrawEffect.WithdrawSuccess)
-                } else {
-                    val errorMsg = "Transaction submission failed. Please try again."
-                    _state.update { it.copy(isLoading = false, error = errorMsg) }
+                } catch (e: Exception) {
+                    _state.update { it.copy(isLoading = false, error = e.message) }
                 }
             }
 

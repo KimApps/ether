@@ -117,6 +117,11 @@ class SigningViewModel @Inject constructor(
      * Executes the Passkey signing flow.
      * Guards against duplicate invocations (isLoading check) and an empty
      * challenge, then delegates to [SignChallengeUseCase] inside a coroutine.
+     *
+     * On success: delivers [SigningResultEntity.Signed] to the coordinator and closes the screen.
+     * On failure: surfaces the error message in [SigningState.error], delivers
+     * [SigningResultEntity.Error] to the coordinator so the upstream flow is
+     * not left suspended indefinitely, and keeps the screen open for a retry.
      */
     private fun onSign() {
         // Guard: ignore taps while already signing or if challenge is not yet loaded
@@ -127,16 +132,34 @@ class SigningViewModel @Inject constructor(
 
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true) }
+            try {
+                // Suspend until the Passkey credential manager resolves the signature
+                val result =
+                    signUseCase(SigningRequest(challenge = challenge, operationType = type))
 
-            // Suspend until the Passkey credential manager resolves the signature
-            val result = signUseCase(SigningRequest(challenge = challenge, operationType = type))
+                // Hand the result to the coordinator so the upstream feature flow can resume
+                coordinator.provideResult(challenge, result)
 
-            // Hand the result to the coordinator so the upstream feature flow can resume
-            coordinator.provideResult(challenge, result)
+                // Reset loading + challenge, then close the screen
+                _state.update { it.copy(isLoading = false, challenge = "") }
+                _effect.send(SigningEffect.Close)
+            } catch (e: Exception) {
+                // Surface the error to the UI so the user can read it and retry
+                _state.update {
+                    it.copy(
+                        isLoading = false,
+                        error = "Signing failed: ${e.localizedMessage}"
+                    )
+                }
 
-            // Reset loading + challenge, then close the screen
-            _state.update { it.copy(isLoading = false, challenge = "") }
-            _effect.send(SigningEffect.Close)
+                // We notify the coordinator of the error so the calling flow
+                // (e.g. WithdrawViewModel) is not left suspended indefinitely
+                coordinator.provideResult(
+                    challenge,
+                    SigningResultEntity.Error(e.message ?: "Unknown Error")
+                )
+            }
+
         }
     }
 

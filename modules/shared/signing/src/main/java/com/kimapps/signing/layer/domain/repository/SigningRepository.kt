@@ -5,5 +5,4 @@ import com.kimapps.signing.layer.domain.request_models.SigningRequest
 
 interface SigningRepository {
     suspend fun signChallenge(rq: SigningRequest): SigningResultEntity
-    suspend fun signWithWallet(challenge: String): SigningResultEntity
 }
