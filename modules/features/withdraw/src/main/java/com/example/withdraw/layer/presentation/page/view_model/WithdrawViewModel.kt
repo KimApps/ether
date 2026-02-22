@@ -1,6 +1,5 @@
 package com.example.withdraw.layer.presentation.page.view_model
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.withdraw.layer.domain.request_models.GetQuotationRequest
@@ -132,6 +131,8 @@ class WithdrawViewModel @Inject constructor(
             } catch (e: Exception) {
                 // Surface any unexpected error (network, serialisation, etc.) to the UI
                 _state.update { it.copy(isLoading = false, error = e.message) }
+            } finally {
+
             }
         }
     }

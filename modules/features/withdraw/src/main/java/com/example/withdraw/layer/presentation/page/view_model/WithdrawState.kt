@@ -21,5 +21,5 @@ data class WithdrawState(
     val amount: String = "",
     val isLoading: Boolean = false,
     val error: String? = null,
-    val isSuccess: Boolean = false
+    val isSuccess: Boolean = false,
 )

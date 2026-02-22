@@ -14,7 +14,6 @@ android {
     defaultConfig {
         namespace = "com.kimapps.signing"
         minSdk = libs.versions.minSdk.get().toInt()
-        targetSdk = libs.versions.targetSdk.get().toInt()
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -64,4 +63,6 @@ dependencies {
     implementation(project(":modules:core:local-storage"))
     implementation(project(":modules:core:navigation"))
     implementation(project(":modules:core:error-logger"))
+    // shared
+    implementation(project(":modules:shared:ui"))
 }

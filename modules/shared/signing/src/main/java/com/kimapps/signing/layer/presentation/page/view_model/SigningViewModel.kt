@@ -73,7 +73,12 @@ class SigningViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching {
                 walletManager.isConnected.collect { connected ->
-                    _state.update { it.copy(isWalletConnected = connected) }
+                    _state.update {
+                        it.copy(
+                            isWalletConnected = connected,
+                            isAwaitingApprovalFromDapp = false
+                        )
+                    }
                 }
             }
         }
@@ -199,7 +204,12 @@ class SigningViewModel @Inject constructor(
     private fun onPair() {
         walletManager.pair(_state.value.pairingUri)
         // Hide the input field — connection state is updated via isConnected flow
-        _state.update { it.copy(showPairingInput = false) }
+        _state.update {
+            it.copy(
+                showPairingInput = false,
+                isAwaitingApprovalFromDapp = true
+            )
+        }
     }
 
     /**

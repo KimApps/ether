@@ -73,5 +73,10 @@ data class SigningState(
      * [SigningApprovalDialog] to be shown over the screen.
      * Cleared back to null after the user approves or rejects the request.
      */
-    val pendingRequest: Wallet.Model.SessionRequest? = null
+    val pendingRequest: Wallet.Model.SessionRequest? = null,
+
+    /**
+     *
+     */
+    val isAwaitingApprovalFromDapp: Boolean = false,
 )

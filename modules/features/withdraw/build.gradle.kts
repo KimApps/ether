@@ -59,4 +59,5 @@ dependencies {
     implementation(project(":modules:core:error-logger"))
     // shared
     implementation(project(":modules:shared:signing"))
+    implementation(project(":modules:shared:ui"))
 }

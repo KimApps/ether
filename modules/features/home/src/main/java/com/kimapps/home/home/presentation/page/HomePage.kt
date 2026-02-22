@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -21,7 +20,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kimapps.home.home.presentation.page.view_model.HomeEffect
 import com.kimapps.home.home.presentation.page.view_model.HomeIntent
 import com.kimapps.home.home.presentation.page.view_model.HomeViewModel
+import com.kimapps.ui.buttons.AppButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,15 +95,10 @@ fun HomePage(
             Spacer(modifier = Modifier.weight(1f))
 
             // Primary Action
-            Button(
+            AppButton(
                 onClick = { viewModel.onIntent(HomeIntent.OnWithdrawClick) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                shape = MaterialTheme.shapes.medium
-            ) {
-                Text("Withdraw Funds", style = MaterialTheme.typography.titleMedium)
-            }
+                text = "Withdraw Funds",
+            )
         }
     }
 }

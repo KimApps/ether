@@ -3,21 +3,21 @@ package com.kimapps.signing.layer.presentation.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.kimapps.ui.buttons.AppButton
+import com.kimapps.ui.buttons.AppButtonType
 
 /**
  * WalletConnectSection - Handles the entire WalletConnect pairing and connection UI
@@ -53,6 +53,7 @@ fun WalletConnectSection(
     isConnected: Boolean,
     showPairingInput: Boolean,
     pairingUri: String,
+    isAwaitingApproval: Boolean,
     onConnectClick: () -> Unit,
     onUriChanged: (String) -> Unit,
     onPairClick: () -> Unit,
@@ -92,6 +93,35 @@ fun WalletConnectSection(
                 }
             }
 
+            isAwaitingApproval -> {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .padding(16.dp)
+                            .fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "Approve the Session",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            "Go to your browser or the Dapp to approve the connection request.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center
+                        )
+
+                    }
+                }
+            }
+
             // ── State 2: Pairing input visible ────────────────────────────────────
             // Shown after the user taps "Connect EOA Wallet".
             // The user must paste a wc: URI obtained from a dApp (e.g. the test dApp link below).
@@ -111,24 +141,21 @@ fun WalletConnectSection(
 
                     // "Pair Wallet" is only enabled once the URI starts with "wc:"
                     // to prevent sending an obviously invalid string to CoreClient
-                    Button(
-                        modifier = Modifier.fillMaxWidth(),
+                    AppButton(
+                        text = "Pair Wallet",
                         onClick = onPairClick,
                         enabled = pairingUri.startsWith("wc:")
-                    ) {
-                        Text("Pair Wallet")
-                    }
+                    )
 
                     // Convenience link that opens the WalletConnect test dApp in a browser.
                     // The test dApp at react-app.walletconnect.com lets developers connect
                     // this wallet, then send a personal_sign request to test the full flow
                     // without needing a real production dApp.
-                    TextButton(
+                    AppButton(
+                        type = AppButtonType.TEXT,
                         onClick = onOpenBrowserClick,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Get URI from WalletConnect Test Dapp ↗️")
-                    }
+                        text = "Get URI from WalletConnect Test Dapp ↗️"
+                    )
                 }
             }
 
@@ -136,14 +163,11 @@ fun WalletConnectSection(
             // Initial state. OutlinedButton (secondary style) signals this is an
             // optional alternative to the primary Passkey button above.
             else -> {
-                OutlinedButton(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
+                AppButton(
+                    text = "Connect EOA Wallet",
+                    type = AppButtonType.SECONDARY,
                     onClick = onConnectClick
-                ) {
-                    Text("Connect EOA Wallet")
-                }
+                )
             }
         }
     }

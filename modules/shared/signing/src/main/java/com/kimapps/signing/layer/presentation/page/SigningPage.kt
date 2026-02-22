@@ -6,17 +6,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
@@ -34,6 +29,7 @@ import com.kimapps.signing.layer.presentation.components.WalletConnectSection
 import com.kimapps.signing.layer.presentation.page.view_model.SigningEffect
 import com.kimapps.signing.layer.presentation.page.view_model.SigningIntent
 import com.kimapps.signing.layer.presentation.page.view_model.SigningViewModel
+import com.kimapps.ui.buttons.AppButton
 
 /**
  * SigningPage - The screen responsible for signing a transaction challenge.
@@ -123,13 +119,15 @@ fun SigningPage(
     val walletSection = remember(
         state.isWalletConnected,
         state.showPairingInput,
-        state.pairingUri
+        state.pairingUri,
+        state.isAwaitingApprovalFromDapp
     ) {
         movableContentOf {
             WalletConnectSection(
                 isConnected = state.isWalletConnected,
                 showPairingInput = state.showPairingInput,
                 pairingUri = state.pairingUri,
+                isAwaitingApproval = state.isAwaitingApprovalFromDapp,
                 onConnectClick = { viewModel.onIntent(SigningIntent.OnSignWithWalletClicked) },
                 onUriChanged = { viewModel.onIntent(SigningIntent.OnPairingUriChanged(it)) },
                 onPairClick = { viewModel.onIntent(SigningIntent.OnPairClicked) },
@@ -193,13 +191,10 @@ fun SigningPage(
                 CircularProgressIndicator()
             } else {
                 // Primary action: sign using the device Passkey (biometrics)
-                Button(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
+                AppButton(
+                    text = "Sign with Passkey",
                     onClick = { viewModel.onIntent(SigningIntent.OnSignClicked) }
-                ) { Text("Sign with Passkey") }
-
+                )
                 // Secondary action group: WalletConnect pairing + signing controls
                 walletSection()
             }
