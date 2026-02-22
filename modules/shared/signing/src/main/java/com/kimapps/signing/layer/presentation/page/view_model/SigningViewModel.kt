@@ -83,6 +83,16 @@ class SigningViewModel @Inject constructor(
             }
         }
 
+        // Mirror the connected EOA address into state so the UI can display
+        // "Sign with 0x1234..." in the WalletConnectSection connected card.
+        // Null when no session is active; set by WalletConnectManager after
+        // onSessionSettleResponse and cleared on onSessionDelete.
+        viewModelScope.launch {
+            walletManager.connectedAddress.collect { address ->
+                _state.update { it.copy(connectedAddress = address) }
+            }
+        }
+
         // Collect incoming session requests emitted by WalletConnectManager
         // whenever the paired dApp sends a personal_sign (or similar) call.
         // Storing the request in state causes the SigningApprovalDialog to appear.

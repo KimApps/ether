@@ -2,6 +2,7 @@ package com.kimapps.signing.layer.presentation.page
 
 import SigningApprovalDialog
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -65,6 +66,23 @@ fun SigningPage(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     // ─────────────────────────────────────────────
+    // Back-press interception
+    // ─────────────────────────────────────────────
+
+    // Intercept the system back button (and gesture) before NavDisplay handles it.
+    // Without this, NavDisplay.onBack pops the screen immediately and
+    // SigningCoordinator never receives a Cancelled result, leaving the
+    // WithdrawViewModel suspended on deferred.await() forever.
+    // By routing back through OnCancelClicked we guarantee that:
+    //   1. provideResult(Cancelled) is called → WithdrawViewModel resumes.
+    //   2. SigningEffect.Close is emitted → onBack() pops the screen.
+    // This is the single exit path for both cancel and success, ensuring
+    // the coordinator is always notified before the composable leaves the backstack.
+    BackHandler {
+        viewModel.onIntent(SigningIntent.OnCancelClicked)
+    }
+
+    // ─────────────────────────────────────────────
     // Side-effects
     // ─────────────────────────────────────────────
 
@@ -122,6 +140,7 @@ fun SigningPage(
                 // Secondary action group: WalletConnect pairing + signing controls
                 WalletConnectSection(
                     isConnected = state.isWalletConnected,
+                    connectedAddress = state.connectedAddress,
                     showPairingInput = state.showPairingInput,
                     pairingUri = state.pairingUri,
                     isAwaitingApproval = state.isAwaitingApprovalFromDapp,

@@ -79,4 +79,13 @@ data class SigningState(
      *
      */
     val isAwaitingApprovalFromDapp: Boolean = false,
+
+    /**
+     * The EOA wallet address currently connected via WalletConnect.
+     * Null when no session is active. Populated from the first account in the
+     * settled session's namespace (CAIP-10 address with the "eip155:1:" prefix stripped).
+     * Displayed in the UI as "Sign with 0x1234..." so the user can verify
+     * which account has been connected before approving a signing request.
+     */
+    val connectedAddress: String? = null,
 )

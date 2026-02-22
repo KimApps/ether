@@ -62,6 +62,21 @@ class WalletConnectManager @Inject constructor(
     val isConnected = _isConnected.asStateFlow()
 
     /**
+     * Backing [MutableStateFlow] for the connected wallet address.
+     * Null when no session is active; populated from the settled session's
+     * account list (first entry) once the handshake completes.
+     */
+    private val _connectedAddress = MutableStateFlow<String?>(null)
+
+    /**
+     * Read-only view of the connected EOA address (e.g. "0x1234...abcd").
+     * Collected by the ViewModel and surfaced in the UI as "Sign with 0x1234..."
+     * so the user can verify which account has been connected.
+     * Null when no WalletConnect session is active.
+     */
+    val connectedAddress = _connectedAddress.asStateFlow()
+
+    /**
      * Backing [MutableSharedFlow] with no replay — each session request is
      * delivered to exactly the one active collector (the ViewModel).
      * SharedFlow (vs Channel) is used so missed emissions during ViewModel
@@ -218,6 +233,7 @@ class WalletConnectManager @Inject constructor(
      */
     override fun onSessionDelete(sessionDelete: Wallet.Model.SessionDelete) {
         _isConnected.value = false
+        _connectedAddress.value = null
     }
 
     /**
@@ -229,7 +245,19 @@ class WalletConnectManager @Inject constructor(
      * - SettledSessionResponse.Error  → approval failed, stay disconnected.
      */
     override fun onSessionSettleResponse(settleSessionResponse: Wallet.Model.SettledSessionResponse) {
-        _isConnected.value = settleSessionResponse is Wallet.Model.SettledSessionResponse.Result
+        val result = settleSessionResponse as? Wallet.Model.SettledSessionResponse.Result
+        _isConnected.value = result != null
+        // Extract the first account address from the settled namespaces.
+        // Accounts are in CAIP-10 format "eip155:1:0xABCD..." — we keep only
+        // the hex address part so the UI can display "Sign with 0xABCD..."
+        _connectedAddress.value = result
+            ?.session
+            ?.namespaces
+            ?.values
+            ?.firstOrNull()
+            ?.accounts
+            ?.firstOrNull()
+            ?.substringAfterLast(":")   // strip "eip155:1:" prefix
     }
 
     /**

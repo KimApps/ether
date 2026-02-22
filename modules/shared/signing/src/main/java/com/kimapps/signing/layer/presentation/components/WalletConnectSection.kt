@@ -35,6 +35,9 @@ import com.kimapps.ui.buttons.AppButtonType
  * via parameters. UI events are reported back through lambda callbacks.
  *
  * @param isConnected        True once WalletConnectManager reports a settled session.
+ * @param connectedAddress   The EOA address of the connected wallet (e.g. "0x1234...abcd").
+ *                           Null when no session is active. Displayed as "Sign with 0x1234..."
+ *                           so the user can verify which account has been connected.
  * @param showPairingInput   True when the user has tapped "Connect" and the URI
  *                           input field should be visible.
  * @param pairingUri         Current text value of the URI input field.
@@ -51,6 +54,7 @@ import com.kimapps.ui.buttons.AppButtonType
 @Composable
 fun WalletConnectSection(
     isConnected: Boolean,
+    connectedAddress: String?,
     showPairingInput: Boolean,
     pairingUri: String,
     isAwaitingApproval: Boolean,
@@ -73,6 +77,14 @@ fun WalletConnectSection(
             // The user must now go back to the dApp and trigger a personal_sign request,
             // which will arrive as a SessionRequest and surface the approval dialog.
             isConnected -> {
+                // Truncate the address to "0x1234...abcd" format — short enough to fit
+                // on screen but still recognisable for the user to verify the right account.
+                val displayAddress = connectedAddress
+                    ?.let { addr ->
+                        if (addr.length > 10) "${addr.take(6)}...${addr.takeLast(4)}" else addr
+                    }
+                    ?: "Unknown"
+
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     // Subtle tinted background to signal a positive / success state
@@ -81,15 +93,28 @@ fun WalletConnectSection(
                         containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
                     )
                 ) {
-                    Text(
-                        text = "Wallet Connected\nTrigger sign request from the website",
+                    Column(
                         modifier = Modifier
                             .padding(16.dp)
                             .fillMaxWidth(),
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            // Shows the requirement: "Sign with 0x1234..."
+                            text = "Sign with $displayAddress",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = "Trigger sign request from the website",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
 
