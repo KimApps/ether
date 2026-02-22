@@ -116,6 +116,7 @@ class WithdrawViewModel @Inject constructor(
                         OperationType.WITHDRAWAL.name
                     )
                 )
+                _state.update { it.copy(isLoading = false) }
 
                 // Step 3: Suspend here until the user finishes interacting with the Signing screen.
                 // SigningCoordinator acts as a bridge between this coroutine and the signing sub-flow.

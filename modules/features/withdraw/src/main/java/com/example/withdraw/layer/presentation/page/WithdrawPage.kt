@@ -19,7 +19,6 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -69,41 +68,6 @@ fun WithdrawPage(
     // are not dropped when the composition updates
     val snackbarHostState = remember { SnackbarHostState() }
 
-    // ─────────────────────────────────────────────
-    // movableContentOf blocks
-    //
-    // Each block is keyed on the state slice it reads.
-    // movableContentOf preserves internal Compose state and layout nodes when the
-    // composable moves in the tree, preventing unnecessary recompositions.
-    // ─────────────────────────────────────────────
-
-    // Static header — no state dependency, created once for the lifetime of the screen
-    val header = remember { movableContentOf { WithdrawHeader() } }
-
-    // Amount input — re-created only when the amount text or loading flag changes
-    val input = remember(state.isLoading) {
-        movableContentOf {
-            WithdrawAmountInput(
-                amount = state.amount,
-                // Disable input while a network request or signing flow is in progress
-                enabled = !state.isLoading,
-                onAmountChange = { viewModel.onIntent(WithdrawIntent.OnAmountChanged(it)) },
-            )
-        }
-    }
-
-    // Submit button — re-created when loading state or amount text changes.
-    // The button is only enabled when not loading AND the amount field is not blank,
-    // preventing empty or duplicate submissions.
-    val actionButton = remember(state.isLoading, state.amount) {
-        movableContentOf {
-            WithdrawActionButton(
-                isLoading = state.isLoading,
-                enabled = !state.isLoading && state.amount.isNotBlank(),
-                onClick = { viewModel.onIntent(WithdrawIntent.OnWithdrawClicked) }
-            )
-        }
-    }
 
     // ─────────────────────────────────────────────
     // One-time effects
@@ -179,16 +143,27 @@ fun WithdrawPage(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // Screen title / subtitle explaining what this screen does
-            header()
+            WithdrawHeader()
 
             // Amount text field — disabled while the submit flow is running
-            input()
+            WithdrawAmountInput(
+                amount = state.amount,
+                // Disable input while a network request or signing flow is in progress
+                enabled = !state.isLoading,
+                onAmountChange = { viewModel.onIntent(WithdrawIntent.OnAmountChanged(it)) },
+            )
 
             // Push action button and error text to the bottom of the screen
             Spacer(modifier = Modifier.weight(1f))
 
-            // Primary CTA: "Withdraw" button (or loading indicator while in progress)
-            actionButton()
+            // Primary CTA: "Withdraw" button (or loading indicator while in progress).
+            // Only enabled when not loading AND the amount field is not blank,
+            // preventing empty or duplicate submissions.
+            WithdrawActionButton(
+                isLoading = state.isLoading,
+                enabled = !state.isLoading && state.amount.isNotBlank(),
+                onClick = { viewModel.onIntent(WithdrawIntent.OnWithdrawClicked) }
+            )
 
             // Inline error text — only rendered when WithdrawState.error is non-null.
             // Complements the snackbar for persistent, contextual error display

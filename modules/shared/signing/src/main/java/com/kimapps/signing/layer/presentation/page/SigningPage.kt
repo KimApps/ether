@@ -13,8 +13,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.movableContentOf
-import androidx.compose.runtime.remember
+
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -88,81 +87,6 @@ fun SigningPage(
     }
 
     // ─────────────────────────────────────────────
-    // movableContentOf blocks
-    //
-    // movableContentOf lets Compose reuse the internal state and layout
-    // nodes of a composable when it moves position in the tree, avoiding
-    // a full destroy-and-recreate on each recomposition.
-    // Each block is keyed on the state slice it depends on so it is only
-    // re-created when its inputs actually change.
-    // ─────────────────────────────────────────────
-
-    // Header showing the operation name (e.g. "WITHDRAWAL").
-    // Re-created only when operationType changes.
-    val signingHeader = remember(state.operationType) {
-        movableContentOf { SigningHeader(state.operationType.name) }
-    }
-
-    // Card showing a truncated preview of the challenge to be signed.
-    // Re-created only when the challenge string changes.
-    val challengeCard = remember(state.challenge) {
-        movableContentOf { ChallengeCard(state.challenge) }
-    }
-
-    // WalletConnect section – handles the full pairing + connection UI:
-    //   • "Connect EOA Wallet" button  → shows the URI input field
-    //   • URI input + "Pair" button    → triggers CoreClient.Pairing.pair()
-    //   • "Sign with Connected Wallet" → dispatches ApproveWalletSign intent
-    //   • "Open Test dApp" link        → launches the WalletConnect demo site
-    //     so developers can generate a test session request without a real dApp.
-    // Re-created when connection state, pairing visibility, or URI text changes.
-    val walletSection = remember(
-        state.isWalletConnected,
-        state.showPairingInput,
-        state.pairingUri,
-        state.isAwaitingApprovalFromDapp
-    ) {
-        movableContentOf {
-            WalletConnectSection(
-                isConnected = state.isWalletConnected,
-                showPairingInput = state.showPairingInput,
-                pairingUri = state.pairingUri,
-                isAwaitingApproval = state.isAwaitingApprovalFromDapp,
-                onConnectClick = { viewModel.onIntent(SigningIntent.OnSignWithWalletClicked) },
-                onUriChanged = { viewModel.onIntent(SigningIntent.OnPairingUriChanged(it)) },
-                onPairClick = { viewModel.onIntent(SigningIntent.OnPairClicked) },
-                onOpenBrowserClick = {
-                    // Open the official WalletConnect test dApp in the browser.
-                    // The dApp lets you send a personal_sign request to this wallet,
-                    // which will arrive as a SessionRequest and show the approval dialog.
-                    val intent = Intent(
-                        Intent.ACTION_VIEW,
-                        "https://react-app.walletconnect.com/".toUri()
-                    )
-                    context.startActivity(intent)
-                }
-            )
-        }
-    }
-
-    // Approval dialog – shown when a WalletConnect session request arrives from the dApp.
-    // The user must explicitly Approve or Reject before the dialog is dismissed.
-    // Re-created only when the pending request object changes (null = hidden).
-    val approvalDialog = remember(state.pendingRequest) {
-        movableContentOf {
-            state.pendingRequest?.let {
-                SigningApprovalDialog(
-                    challenge = state.challenge,
-                    // Approve: signs with a mock signature and notifies the dApp via WalletKit
-                    onApprove = { viewModel.onIntent(SigningIntent.ApproveWalletSign) },
-                    // Reject: sends an error response to the dApp and clears the pending request
-                    onReject = { viewModel.onIntent(SigningIntent.RejectWalletSign) }
-                )
-            }
-        }
-    }
-
-    // ─────────────────────────────────────────────
     // UI Layout
     // ─────────────────────────────────────────────
 
@@ -178,10 +102,10 @@ fun SigningPage(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             // Operation title (e.g. "WITHDRAWAL")
-            signingHeader()
+            SigningHeader(state.operationType.name)
 
             // Truncated challenge preview so the user knows what they are signing
-            challengeCard()
+            ChallengeCard(state.challenge)
 
             // Push action buttons to the bottom of the screen
             Spacer(modifier = Modifier.weight(1f))
@@ -196,14 +120,38 @@ fun SigningPage(
                     onClick = { viewModel.onIntent(SigningIntent.OnSignClicked) }
                 )
                 // Secondary action group: WalletConnect pairing + signing controls
-                walletSection()
+                WalletConnectSection(
+                    isConnected = state.isWalletConnected,
+                    showPairingInput = state.showPairingInput,
+                    pairingUri = state.pairingUri,
+                    isAwaitingApproval = state.isAwaitingApprovalFromDapp,
+                    onConnectClick = { viewModel.onIntent(SigningIntent.OnSignWithWalletClicked) },
+                    onUriChanged = { viewModel.onIntent(SigningIntent.OnPairingUriChanged(it)) },
+                    onPairClick = { viewModel.onIntent(SigningIntent.OnPairClicked) },
+                    onOpenBrowserClick = {
+                        // Open the official WalletConnect test dApp in the browser.
+                        // The dApp lets you send a personal_sign request to this wallet,
+                        // which will arrive as a SessionRequest and show the approval dialog.
+                        val intent = Intent(
+                            Intent.ACTION_VIEW,
+                            "https://react-app.walletconnect.com/".toUri()
+                        )
+                        context.startActivity(intent)
+                    }
+                )
             }
         }
 
         // Approval dialog is rendered outside the Column so it overlays the entire Scaffold.
         // Only shown when the dApp has sent a pending session request.
-        if (state.pendingRequest != null) {
-            approvalDialog()
+        state.pendingRequest?.let {
+            SigningApprovalDialog(
+                challenge = state.challenge,
+                // Approve: signs with a mock signature and notifies the dApp via WalletKit
+                onApprove = { viewModel.onIntent(SigningIntent.ApproveWalletSign) },
+                // Reject: sends an error response to the dApp and clears the pending request
+                onReject = { viewModel.onIntent(SigningIntent.RejectWalletSign) }
+            )
         }
     }
 }
