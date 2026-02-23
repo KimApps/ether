@@ -21,17 +21,15 @@ production path would look like.
 | Callback lambda passed via nav argument | Nav arguments are serialised strings; lambdas cannot be serialised |
 | Event bus (e.g. `MutableSharedFlow` in a singleton) | Works, but receivers must filter by challenge themselves — moves coordination logic into every consumer |
 
-**Trade-off:** `CompletableDeferred` is a clean one-shot promise per challenge key, but it
-does not automatically handle cancellation when the user navigates back before
-`provideResult` is called. The `finally` block in `requestSignature` removes the
-entry from the map, but the deferred is never explicitly cancelled — the calling
-coroutine (in `viewModelScope`) is cancelled by the OS, which unblocks `await()`
-via `CancellationException`. This is correct but relies on `viewModelScope`
-cancellation rather than an explicit `deferred.cancel()` call.
-
-**Production path:** Wrap `deferred.await()` in `suspendCancellableCoroutine` and
-call `deferred.cancel()` inside `invokeOnCancellation` so back-press is
-explicitly propagated even if the ViewModel scope outlives the screen.
+**Trade-off:** `CompletableDeferred` is a clean one-shot promise per challenge key.
+Back-press cancellation is handled explicitly at the UI layer: `SigningPage` installs
+a `BackHandler` that intercepts the system back gesture and routes it through
+`SigningIntent.OnCancelClicked` → `SigningViewModel.onCancel()` →
+`coordinator.provideResult(challenge, SigningResultEntity.Cancelled)`.
+This completes the deferred with a typed `Cancelled` result before the screen is
+popped, so `WithdrawViewModel` is never left suspended indefinitely.
+Every exit path — success, error, and cancel — goes through `provideResult`,
+making the coordinator's contract fully explicit.
 
 ---
 
