@@ -40,7 +40,7 @@ class KtorApiClient @Inject constructor(
     override suspend fun get(
         url: String,
         queryParams: Map<String, String>,
-        headers: Map<String, String>
+        requestHeaders: Map<String, String>
     ): ApiResponse {
         return try {
             val response: HttpResponse = httpClient.get(url) {
@@ -50,7 +50,7 @@ class KtorApiClient @Inject constructor(
                 }
                 // Add custom headers
                 headers {
-                    headers.forEach { (key, value) ->
+                    requestHeaders.forEach { (key, value) ->
                         append(key, value)
                     }
                 }
@@ -68,7 +68,7 @@ class KtorApiClient @Inject constructor(
     override suspend fun post(
         url: String,
         body: Any,
-        headers: Map<String, String>
+        requestHeaders: Map<String, String>
     ): ApiResponse {
         return try {
             val response: HttpResponse = httpClient.post(url) {
@@ -76,7 +76,7 @@ class KtorApiClient @Inject constructor(
                 setBody(gson.toJson(body))
                 // Add custom headers
                 headers {
-                    headers.forEach { (key, value) ->
+                    requestHeaders.forEach { (key, value) ->
                         append(key, value)
                     }
                 }
@@ -94,7 +94,7 @@ class KtorApiClient @Inject constructor(
     override suspend fun put(
         url: String,
         body: Any,
-        headers: Map<String, String>
+        requestHeaders: Map<String, String>
     ): ApiResponse {
         return try {
             val response: HttpResponse = httpClient.put(url) {
@@ -102,7 +102,7 @@ class KtorApiClient @Inject constructor(
                 setBody(gson.toJson(body))
                 // Add custom headers
                 headers {
-                    headers.forEach { (key, value) ->
+                    requestHeaders.forEach { (key, value) ->
                         append(key, value)
                     }
                 }
@@ -120,7 +120,7 @@ class KtorApiClient @Inject constructor(
     override suspend fun delete(
         url: String,
         body: Any,
-        headers: Map<String, String>
+        requestHeaders: Map<String, String>
     ): ApiResponse {
         return try {
             val response: HttpResponse = httpClient.delete(url) {
@@ -128,7 +128,7 @@ class KtorApiClient @Inject constructor(
                 setBody(gson.toJson(body))
                 // Add custom headers
                 headers {
-                    headers.forEach { (key, value) ->
+                    requestHeaders.forEach { (key, value) ->
                         append(key, value)
                     }
                 }
@@ -146,7 +146,7 @@ class KtorApiClient @Inject constructor(
     override suspend fun patch(
         url: String,
         body: Any,
-        headers: Map<String, String>
+        requestHeaders: Map<String, String>
     ): ApiResponse {
         return try {
             val response: HttpResponse = httpClient.patch(url) {
@@ -154,7 +154,7 @@ class KtorApiClient @Inject constructor(
                 setBody(gson.toJson(body))
                 // Add custom headers
                 headers {
-                    headers.forEach { (key, value) ->
+                    requestHeaders.forEach { (key, value) ->
                         append(key, value)
                     }
                 }

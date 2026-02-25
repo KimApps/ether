@@ -24,10 +24,10 @@ class RetrofitApiClientImpl @Inject constructor(
     override suspend fun get(
         url: String,
         queryParams: Map<String, String>,
-        headers: Map<String, String>
+        requestHeaders: Map<String, String>
     ): ApiResponse {
         return try {
-            val response = retrofitService.get(url, queryParams, headers)
+            val response = retrofitService.get(url, queryParams, requestHeaders)
             response.toApiResponseOrThrow()
         } catch (e: Throwable) {
             throw RetrofitNetworkException.mapToAppException(e)
@@ -37,10 +37,10 @@ class RetrofitApiClientImpl @Inject constructor(
     override suspend fun post(
         url: String,
         body: Any,
-        headers: Map<String, String>
+        requestHeaders: Map<String, String>
     ): ApiResponse {
         return try {
-            val response = retrofitService.post(url, body, headers)
+            val response = retrofitService.post(url, body, requestHeaders)
             response.toApiResponseOrThrow()
         } catch (e: Throwable) {
             throw RetrofitNetworkException.mapToAppException(e)
@@ -50,10 +50,10 @@ class RetrofitApiClientImpl @Inject constructor(
     override suspend fun put(
         url: String,
         body: Any,
-        headers: Map<String, String>
+        requestHeaders: Map<String, String>
     ): ApiResponse {
         return try {
-            val response = retrofitService.put(url, body, headers)
+            val response = retrofitService.put(url, body, requestHeaders)
             response.toApiResponseOrThrow()
         } catch (e: Throwable) {
             throw RetrofitNetworkException.mapToAppException(e)
@@ -63,10 +63,10 @@ class RetrofitApiClientImpl @Inject constructor(
     override suspend fun delete(
         url: String,
         body: Any,
-        headers: Map<String, String>
+        requestHeaders: Map<String, String>
     ): ApiResponse {
         return try {
-            val response = retrofitService.delete(url, body, headers)
+            val response = retrofitService.delete(url, body, requestHeaders)
             response.toApiResponseOrThrow()
         } catch (e: Throwable) {
             throw RetrofitNetworkException.mapToAppException(e)
@@ -76,10 +76,10 @@ class RetrofitApiClientImpl @Inject constructor(
     override suspend fun patch(
         url: String,
         body: Any,
-        headers: Map<String, String>
+        requestHeaders: Map<String, String>
     ): ApiResponse {
         return try {
-            val response = retrofitService.patch(url, body, headers)
+            val response = retrofitService.patch(url, body, requestHeaders)
             response.toApiResponseOrThrow()
         } catch (e: Throwable) {
             throw RetrofitNetworkException.mapToAppException(e)

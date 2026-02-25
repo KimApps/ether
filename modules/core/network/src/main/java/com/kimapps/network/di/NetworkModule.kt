@@ -33,7 +33,6 @@ import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.takeFrom
 import io.ktor.serialization.kotlinx.json.json
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -103,7 +102,7 @@ object NetworkModule {
         refreshTokenInterceptor: RefreshTokenInterceptor
     ): OkHttpClient {
         // Create auth interceptor that retrieves token dynamically on each request
-        // Using getTokenBlocking() since interceptors cannot be suspend functions
+        // Using getTokenBlocking() since interceptors cannot suspend functions
         val authInterceptor = AuthInterceptor(
             tokenProvider = { tokenManager.getTokenBlocking() }
         )
@@ -277,24 +276,22 @@ object NetworkModule {
                     // Load tokens for each request
                     loadTokens {
                         // Use runBlocking since loadTokens is not a suspend function
-                        val token = runBlocking { tokenManager.getToken() }
+                        val token = tokenManager.getToken()
                         token?.let { BearerTokens(it, "") }
                     }
 
                     // Refresh tokens when receiving 401 Unauthorized
                     refreshTokens {
                         // Attempt to refresh the token
-                        val refreshSuccess = runBlocking {
-                            refreshTokenInterceptor.refreshToken()
-                        }
+                        val refreshSuccess = refreshTokenInterceptor.refreshToken()
 
                         if (refreshSuccess) {
                             // Return new tokens after successful refresh
-                            val newToken = runBlocking { tokenManager.getToken() }
+                            val newToken = tokenManager.getToken()
                             newToken?.let { BearerTokens(it, "") }
                         } else {
                             // Refresh failed, clear tokens and return null
-                            runBlocking { tokenManager.clearToken() }
+                            tokenManager.clearToken()
                             null
                         }
                     }

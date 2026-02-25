@@ -5,6 +5,7 @@ import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.HeaderMap
 import retrofit2.http.PATCH
 import retrofit2.http.POST
@@ -73,7 +74,7 @@ interface RetrofitApiService {
      * @param headers A map of custom headers to be added to the request.
      * @return A Retrofit [Response] containing the [ResponseBody].
      */
-    @DELETE
+    @HTTP(method = "DELETE", hasBody = true)
     suspend fun delete(
         @Url url: String,
         @Body body: Any,

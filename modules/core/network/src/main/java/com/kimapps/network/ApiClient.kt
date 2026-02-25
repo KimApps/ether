@@ -15,13 +15,13 @@ interface ApiClient {
      *
      * @param url The endpoint URL for the request.
      * @param queryParams A map of query parameters to be appended to the URL.
-     * @param headers A map of custom headers to be added to the request.
+     * @param requestHeaders A map of custom headers to be added to the request.
      * @return An [ApiResponse] containing the response data.
      */
     suspend fun get(
         url: String,
         queryParams: Map<String, String> = emptyMap(),
-        headers: Map<String, String> = emptyMap()
+        requestHeaders: Map<String, String> = emptyMap()
     ): ApiResponse
 
     /**
@@ -29,13 +29,13 @@ interface ApiClient {
      *
      * @param url The endpoint URL for the request.
      * @param body The request body.
-     * @param headers A map of custom headers to be added to the request.
+     * @param requestHeaders A map of custom headers to be added to the request.
      * @return An [ApiResponse] containing the response data.
      */
     suspend fun post(
         url: String,
         body: Any,
-        headers: Map<String, String> = emptyMap()
+        requestHeaders: Map<String, String> = emptyMap()
     ): ApiResponse
 
     /**
@@ -43,13 +43,13 @@ interface ApiClient {
      *
      * @param url The endpoint URL for the request.
      * @param body The request body.
-     * @param headers A map of custom headers to be added to the request.
+     * @param requestHeaders A map of custom headers to be added to the request.
      * @return An [ApiResponse] containing the response data.
      */
     suspend fun put(
         url: String,
         body: Any,
-        headers: Map<String, String> = emptyMap()
+        requestHeaders: Map<String, String> = emptyMap()
     ): ApiResponse
 
     /**
@@ -57,13 +57,13 @@ interface ApiClient {
      *
      * @param url The endpoint URL for the request.
      * @param body The request body (optional).
-     * @param headers A map of custom headers to be added to the request.
+     * @param requestHeaders A map of custom headers to be added to the request.
      * @return An [ApiResponse] containing the response data.
      */
     suspend fun delete(
         url: String,
         body: Any,
-        headers: Map<String, String> = emptyMap()
+        requestHeaders: Map<String, String> = emptyMap()
     ): ApiResponse
 
     /**
@@ -71,13 +71,13 @@ interface ApiClient {
      *
      * @param url The endpoint URL for the request.
      * @param body The request body.
-     * @param headers A map of custom headers to be added to the request.
+     * @param requestHeaders A map of custom headers to be added to the request.
      * @return An [ApiResponse] containing the response data.
      */
     suspend fun patch(
         url: String,
         body: Any,
-        headers: Map<String, String> = emptyMap()
+        requestHeaders: Map<String, String> = emptyMap()
     ): ApiResponse
 }
 
