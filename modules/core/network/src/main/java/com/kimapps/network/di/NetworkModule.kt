@@ -40,7 +40,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
-
+import com.kimapps.network.BuildConfig
 
 /**
  * Dagger Hilt module for providing network-related dependencies.
@@ -109,7 +109,11 @@ object NetworkModule {
 
         // Create a logging interceptor to view network traffic in the logcat.
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) {
+                HttpLoggingInterceptor.Level.BODY
+            } else {
+                HttpLoggingInterceptor.Level.NONE
+            }
         }
 
         // Build the OkHttpClient with interceptors and timeouts.
@@ -267,7 +271,7 @@ object NetworkModule {
             // Request/Response logging
             install(Logging) {
                 logger = Logger.ANDROID
-                level = LogLevel.BODY
+                level = if (BuildConfig.DEBUG) LogLevel.BODY else LogLevel.NONE
             }
 
             // Bearer token authentication with automatic refresh
@@ -275,23 +279,31 @@ object NetworkModule {
                 bearer {
                     // Load tokens for each request
                     loadTokens {
-                        // Use runBlocking since loadTokens is not a suspend function
                         val token = tokenManager.getToken()
-                        token?.let { BearerTokens(it, "") }
+                        val refreshToken = tokenManager.getRefreshToken()
+                        if (token != null) {
+                            BearerTokens(token, refreshToken ?: "")
+                        } else {
+                            null
+                        }
                     }
 
                     // Refresh tokens when receiving 401 Unauthorized
                     refreshTokens {
-                        // Attempt to refresh the token
                         val refreshSuccess = refreshTokenInterceptor.refreshToken()
 
                         if (refreshSuccess) {
-                            // Return new tokens after successful refresh
-                            val newToken = tokenManager.getToken()
-                            newToken?.let { BearerTokens(it, "") }
+                            // After a successful refresh, get the NEW tokens from storage
+                            val newAccessToken = tokenManager.getToken()
+                            val newRefreshToken = tokenManager.getRefreshToken()
+                            if (newAccessToken != null) {
+                                BearerTokens(newAccessToken, newRefreshToken ?: "")
+                            } else {
+                                null
+                            }
                         } else {
-                            // Refresh failed, clear tokens and return null
-                            tokenManager.clearToken()
+                            // Refresh failed, clear everything
+                            tokenManager.clearTokens()
                             null
                         }
                     }

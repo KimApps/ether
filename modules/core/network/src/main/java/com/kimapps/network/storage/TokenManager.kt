@@ -121,9 +121,10 @@ class TokenManager @Inject constructor(
      * }
      * ```
      */
-    suspend fun clearToken() {
+    suspend fun clearTokens() {
         dataStore.edit { preferences ->
             preferences.remove(KEY_AUTH_TOKEN)
+            preferences.remove(KEY_REFRESH_TOKEN)
         }
     }
 
@@ -202,9 +203,9 @@ class TokenManager @Inject constructor(
      * ⚠️ WARNING: This blocks the calling thread. Prefer using the suspend version
      * in ViewModels and repositories.
      */
-    fun clearTokenBlocking() {
+    fun clearTokensBlocking() {
         kotlinx.coroutines.runBlocking {
-            clearToken()
+            clearTokens()
         }
     }
 }

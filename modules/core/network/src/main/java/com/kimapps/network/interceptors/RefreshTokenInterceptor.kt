@@ -4,9 +4,11 @@ import com.google.gson.Gson
 import com.kimapps.network.constants.ApiEndpoint
 import com.kimapps.network.storage.TokenManager
 import okhttp3.Interceptor
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -73,39 +75,30 @@ class RefreshTokenInterceptor @Inject constructor(
     private val lock = Any()
 
     // Track if we're currently refreshing to avoid multiple simultaneous refreshes
-    @Volatile
-    private var isRefreshing = false
+    private var isRefreshing = java.util.concurrent.atomic.AtomicBoolean(false)
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
 
-        // Skip refresh logic for the refresh token endpoint itself
         if (originalRequest.url.encodedPath.contains(ApiEndpoint.refreshTokens)) {
             return chain.proceed(originalRequest)
         }
 
-        // Execute the original request
         val response = chain.proceed(originalRequest)
 
-        // Check if response is 401 Unauthorized
         if (response.code == 401) {
-            response.close() // Close the original response before retrying
+            // FIX #5: Capture the protocol BEFORE closing
+            val protocol = response.protocol
+            response.close()
 
-            // Attempt to refresh the token
             synchronized(lock) {
                 val currentToken = tokenManager.getTokenBlocking()
 
-                // If token changed while waiting, it means another thread refreshed it
-                // Retry the request with the new token
                 if (currentToken != null && currentToken != extractToken(originalRequest)) {
                     return retryRequestWithNewToken(chain, originalRequest, currentToken)
                 }
 
-                // Attempt to refresh the token
-                val refreshSuccess = refreshToken()
-
-                if (refreshSuccess) {
-                    // Token refreshed successfully, retry the original request
+                if (refreshToken()) {
                     val newToken = tokenManager.getTokenBlocking()
                     if (newToken != null) {
                         return retryRequestWithNewToken(chain, originalRequest, newToken)
@@ -113,10 +106,15 @@ class RefreshTokenInterceptor @Inject constructor(
                 }
             }
 
-            // Refresh failed or no refresh token available
-            // Clear tokens and return 401 (app should navigate to login)
-            tokenManager.clearTokenBlocking()
-            return response
+            // FIX #5: Create a NEW response instead of returning the closed one
+            tokenManager.clearTokensBlocking()
+            return Response.Builder()
+                .request(originalRequest)
+                .protocol(protocol) // Use captured protocol
+                .code(401)
+                .message("Unauthorized (Refresh Failed)")
+                .body("".toResponseBody("application/json".toMediaTypeOrNull()))
+                .build()
         }
 
         return response
@@ -127,53 +125,38 @@ class RefreshTokenInterceptor @Inject constructor(
      *
      * @return true if refresh was successful, false otherwise
      */
-     fun refreshToken(): Boolean {
-        if (isRefreshing) {
-            // Already refreshing in another thread
-            return false
+    fun refreshToken(): Boolean {
+        // compareAndSet(expected, new) is atomic.
+        // It returns true ONLY if it successfully changed false to true.
+        if (!isRefreshing.compareAndSet(false, true)) {
+            // Someone else is already refreshing.
+            // We return true here because the synchronized(lock) in intercept()
+            // will make this thread wait anyway.
+            return true
         }
 
         return try {
-            isRefreshing = true
-
-            val refreshToken = tokenManager.getRefreshTokenBlocking()
-                ?: // No refresh token available, cannot refresh
-                return false
-
-            // Build the refresh request
-            val refreshRequest = buildRefreshRequest(refreshToken)
-
-            // Create a new OkHttpClient without interceptors to avoid infinite loops
+            val refreshToken = tokenManager.getRefreshTokenBlocking() ?: return false
             val client = okhttp3.OkHttpClient()
-            val response = client.newCall(refreshRequest).execute()
+            val response = client.newCall(buildRefreshRequest(refreshToken)).execute()
 
             if (response.isSuccessful) {
                 val responseBody = response.body.string()
-                run {
-                    // Parse the new tokens from response
-                    val tokenResponse =
-                        gson.fromJson(responseBody, RefreshTokenResponse::class.java)
+                val tokenResponse = gson.fromJson(responseBody, RefreshTokenResponse::class.java)
 
-                    // Save the new tokens
-                    tokenManager.saveTokensBlocking(
-                        token = tokenResponse.accessToken,
-                        refreshToken = tokenResponse.refreshToken ?: refreshToken
-                    )
-
-                    true
-                }
+                tokenManager.saveTokensBlocking(
+                    token = tokenResponse.accessToken,
+                    refreshToken = tokenResponse.refreshToken ?: refreshToken
+                )
+                true
             } else {
-                // Refresh failed (e.g., refresh token expired)
                 false
             }
-        } catch (e: IOException) {
-            // Network error during refresh
-            false
         } catch (e: Exception) {
-            // Parsing or other error
             false
         } finally {
-            isRefreshing = false
+            // Reset the flag so future 401s can trigger a refresh
+            isRefreshing.set(false)
         }
     }
 

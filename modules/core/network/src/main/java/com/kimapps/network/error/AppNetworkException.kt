@@ -37,6 +37,18 @@ sealed class AppNetworkException(message: String? = null) : Throwable(message) {
         AppNetworkException(message = "Timeout - $errorMessage")
 
     /**
+     * Empty response body error
+     */
+    data class AppBodyResponseException(val errorMessage: String) :
+        AppNetworkException(message = "No response body - $errorMessage")
+
+    /**
+     * Convert response body error
+     */
+    data class AppConvertResponseException(val errorMessage: String) :
+        AppNetworkException(message = "Gson convert error - $errorMessage")
+
+    /**
      * Connection error
      */
     data class AppConnectionException(val errorMessage: String) :
