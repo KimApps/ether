@@ -24,21 +24,21 @@ fun SigningHeader(operationName: String) {
     // Centre-align both texts so the header reads as a cohesive title block
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
-    ) {}
+    ) {
+        // Operation name – bold + primary colour draws the user's eye immediately
+        // and makes it clear which action they are authorising
+        Text(
+            text = operationName,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary
+        )
 
-    // Operation name – bold + primary colour draws the user's eye immediately
-    // and makes it clear which action they are authorising
-    Text(
-        text = operationName,
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary
-    )
-
-    // Static subtitle – sets the user's expectation to review the challenge
-    // card below before tapping a signing button
-    Text(
-        text = "Verify the details below to sign",
-        style = MaterialTheme.typography.bodyMedium
-    )
+        // Static subtitle – sets the user's expectation to review the challenge
+        // card below before tapping a signing button
+        Text(
+            text = "Verify the details below to sign",
+            style = MaterialTheme.typography.bodyMedium
+        )
+    }
 }

@@ -14,12 +14,9 @@ package com.example.withdraw.layer.presentation.page.view_model
  *                     indicator and disable interactive controls.
  * @property error     A human-readable error message to display when an operation fails,
  *                     or `null` when there is no error.
- * @property isSuccess `true` once the backend confirms the withdrawal was accepted.
- *                     The UI can use this flag to show a success message or navigate away.
  */
 data class WithdrawState(
     val amount: String = "",
     val isLoading: Boolean = false,
     val error: String? = null,
-    val isSuccess: Boolean = false,
 )

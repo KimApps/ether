@@ -1,6 +1,6 @@
 package com.kimapps.signing.layer.data.repository
 
-import com.kimapps.signing.layer.data.data_sourses.SigningRemoteDS
+import com.kimapps.signing.layer.data.data_sources.SigningRemoteDS
 import com.kimapps.signing.layer.data.mapper.SigningResultMapper
 import com.kimapps.signing.layer.domain.entity_models.SigningResultEntity
 import com.kimapps.signing.layer.domain.repository.SigningRepository

@@ -3,6 +3,7 @@ compileSdk = "36"
 minSdk = "26"
 targetSdk = "36"
 agp = "8.13.2"
+tinkAndroid = "1.20.0"
 walletkit = "1.6.6"
 kotlin = "2.1.10"
 ksp = "2.1.10-1.0.31"
@@ -28,6 +29,7 @@ nav3Core = "1.0.1"
 [libraries]
 androidx-compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-extended"}
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+tink-android = { module = "com.google.crypto.tink:tink-android", version.ref = "tinkAndroid" }
 walletkit = { module = "com.reown:walletkit", version.ref = "walletkit" }
 walletkit-android-core = { module = "com.reown:android-core", version.ref = "walletkit" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

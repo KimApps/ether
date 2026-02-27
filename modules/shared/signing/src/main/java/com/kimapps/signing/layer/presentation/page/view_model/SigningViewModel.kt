@@ -56,7 +56,7 @@ class SigningViewModel @Inject constructor(
 
     // Backing Channel with default (RENDEZVOUS) capacity — each effect is
     // delivered exactly once even if the collector is temporarily inactive
-    private val _effect = Channel<SigningEffect>()
+    private val _effect = Channel<SigningEffect>(Channel.BUFFERED)
 
     // Exposed as a Flow so the UI collects it inside a LaunchedEffect
     val effect = _effect.receiveAsFlow()
@@ -71,14 +71,12 @@ class SigningViewModel @Inject constructor(
         // WalletConnectSection automatically switches between the pairing input
         // and the "Wallet Connected" confirmation card.
         viewModelScope.launch {
-            runCatching {
-                walletManager.isConnected.collect { connected ->
-                    _state.update {
-                        it.copy(
-                            isWalletConnected = connected,
-                            isAwaitingApprovalFromDapp = false
-                        )
-                    }
+            walletManager.isConnected.collect { connected ->
+                _state.update {
+                    it.copy(
+                        isWalletConnected = connected,
+                        isAwaitingApprovalFromDapp = false
+                    )
                 }
             }
         }
@@ -187,9 +185,18 @@ class SigningViewModel @Inject constructor(
      */
     private fun onCancel() {
         val challenge = _state.value.challenge
-        viewModelScope.launch {
-            coordinator.provideResult(challenge, SigningResultEntity.Cancelled)
-            _effect.send(SigningEffect.Close)
+        // Guard: if the screen was dismissed before OnInit populated the challenge,
+        // there is nothing to cancel — skip the coordinator call entirely.
+        if (challenge.isNotBlank()) {
+            viewModelScope.launch {
+                coordinator.provideResult(challenge, SigningResultEntity.Cancelled)
+                _effect.send(SigningEffect.Close)
+            }
+        } else {
+            // If no challenge was even loaded, just close the screen.
+            viewModelScope.launch {
+                _effect.send(SigningEffect.Close)
+            }
         }
     }
 
@@ -265,7 +272,7 @@ class SigningViewModel @Inject constructor(
                 coordinator.provideResult(challenge, SigningResultEntity.Signed(mockSignature))
 
                 // Clear the dialog and challenge, then emit Close to pop this screen
-                _state.update { it.copy(pendingRequest = null, challenge = "") }
+                _state.update { it.copy(pendingRequest = null, challenge = "", isLoading = false) }
                 _effect.send(SigningEffect.Close)
             } catch (e: Exception) {
                 coordinator.provideResult(

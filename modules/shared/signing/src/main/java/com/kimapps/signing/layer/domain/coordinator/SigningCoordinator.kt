@@ -5,6 +5,7 @@ import com.kimapps.signing.layer.domain.request_models.SigningRequest
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -38,22 +39,17 @@ class SigningCoordinator @Inject constructor() {
     private val _signingRequest = MutableSharedFlow<SigningRequest>(extraBufferCapacity = 1)
 
     /**
-     * Read-only stream of signing requests.
-     * Observed by the navigation layer or app-level ViewModel to know when
-     * to push the signing screen onto the back stack.
-     */
-    val signingRequest = _signingRequest.asSharedFlow()
-
-    /**
      * Tracks every in-flight signing request by its challenge string.
      * Each entry maps a challenge → its [CompletableDeferred], which is
      * completed by [provideResult] when the signing screen finishes.
      *
      * Accessed from both the feature coroutine and the signing ViewModel,
-     * potentially on different threads — all reads and writes are wrapped
-     * in [synchronized] to prevent race conditions.
+     * potentially on different threads. [ConcurrentHashMap] provides
+     * lock-free thread-safety for individual read/write operations without
+     * requiring explicit synchronization.
      */
-    private val activeRequests = mutableMapOf<String, CompletableDeferred<SigningResultEntity>>()
+    private val activeRequests =
+        ConcurrentHashMap<String, CompletableDeferred<SigningResultEntity>>()
 
     /**
      * Called by feature modules (e.g. WithdrawViewModel) to request a signature.
@@ -63,8 +59,11 @@ class SigningCoordinator @Inject constructor() {
      * The caller therefore never needs to poll or register a callback —
      * it simply awaits the result like a regular function return.
      *
-     * Thread-safety: the [activeRequests] map is mutated under [synchronized]
-     * both here and in [provideResult] to guard against concurrent access.
+     * Thread-safety: [activeRequests] is a [ConcurrentHashMap]. Individual map
+     * operations ([remove], index reads) are thread-safe, but [getOrPut] is not
+     * a single atomic check-then-insert — the lambda can execute on multiple
+     * threads simultaneously for the same key. This is acceptable here because
+     * challenge strings are unique per request, guaranteeing a single caller.
      *
      * @param rq The signing request containing the challenge string and operation type.
      * @return   The [SigningResultEntity] produced by the signing screen:
@@ -72,21 +71,20 @@ class SigningCoordinator @Inject constructor() {
      *           [SigningResultEntity.Error].
      */
     suspend fun requestSignature(rq: SigningRequest): SigningResultEntity {
-        // Create a new deferred for this specific challenge.
-        // CompletableDeferred acts as a one-shot "promise" that can be
-        // completed exactly once from any thread.
-        val deferred = CompletableDeferred<SigningResultEntity>()
+        // getOrPut returns the existing deferred if one is already mapped to this
+        // challenge, or atomically inserts and returns a new CompletableDeferred.
+        // Note: ConcurrentHashMap.getOrPut is NOT a single atomic operation —
+        // the lambda may be invoked even if another thread wins the race and
+        // inserts first. In practice this is safe here because each challenge
+        // string is unique per request, so only one coroutine will ever call
+        // this for the same key at a time.
+        val deferred =
+            activeRequests.getOrPut(rq.challenge) { CompletableDeferred() }
 
-        // Register the deferred under the challenge key so provideResult
-        // can look it up and complete it when the signing screen is done
-        synchronized(activeRequests) {
-            activeRequests[rq.challenge] = deferred
-        }
-
-        // Notify the navigation layer to open the signing screen.
-        // tryEmit is safe here because extraBufferCapacity = 1 guarantees
-        // the emission is buffered even without an active collector
-        _signingRequest.tryEmit(rq)
+        // emit() suspends if the buffer is full; extraBufferCapacity = 1
+        // ensures it returns immediately as long as no previous emission
+        // is still pending, which is the expected case for unique challenges.
+        _signingRequest.emit(rq)
 
         // Suspend this coroutine until SigningViewModel calls provideResult.
         // The finally block runs whether the deferred completes normally
@@ -94,11 +92,11 @@ class SigningCoordinator @Inject constructor() {
         return try {
             deferred.await()
         } finally {
-            // Always remove the entry to prevent a memory leak, regardless
-            // of whether the result was a success, cancellation, or error
-            synchronized(activeRequests) {
-                activeRequests.remove(rq.challenge)
-            }
+            // Always clean up the entry regardless of how the coroutine ended —
+            // normal completion, cancellation (e.g. back press), or an exception.
+            // Leaving a stale deferred in the map would leak memory and could
+            // cause a future request with the same challenge to resume the wrong caller.
+            activeRequests.remove(rq.challenge)
         }
     }
 
@@ -116,10 +114,9 @@ class SigningCoordinator @Inject constructor() {
      * @param result    The outcome of the signing flow to deliver to the caller.
      */
     fun provideResult(challenge: String, result: SigningResultEntity) {
-        synchronized(activeRequests) {
-            // complete() transitions the deferred from "pending" to "done",
-            // waking the coroutine suspended in deferred.await() above
-            activeRequests[challenge]?.complete(result)
-        }
+        // complete() transitions the deferred from "pending" to "done",
+        // waking the coroutine suspended in deferred.await() above.
+        // ConcurrentHashMap guarantees a safe read here without additional locking.
+        activeRequests[challenge]?.complete(result)
     }
 }

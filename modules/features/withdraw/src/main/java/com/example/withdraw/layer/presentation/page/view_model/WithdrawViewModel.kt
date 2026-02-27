@@ -51,7 +51,7 @@ class WithdrawViewModel @Inject constructor(
      * One-shot side-effects (e.g. navigation, snackbars) delivered via a [Channel]
      * so each event is consumed exactly once.
      */
-    private val _effect = Channel<WithdrawEffect>()
+    private val _effect = Channel<WithdrawEffect>(Channel.BUFFERED)
     val effect = _effect.receiveAsFlow()
 
     /**
@@ -93,6 +93,9 @@ class WithdrawViewModel @Inject constructor(
      * All network/signing errors are caught and surfaced through [WithdrawState.error].
      */
     private fun onWithdraw() {
+        // Guard: prevent multiple clicks
+        if (_state.value.isLoading) return
+
         viewModelScope.launch {
             val amount = _state.value.amount.toDoubleOrNull() ?: 0.0
 
@@ -116,6 +119,9 @@ class WithdrawViewModel @Inject constructor(
                         OperationType.WITHDRAWAL.name
                     )
                 )
+
+                // Reset loading here so if the user navigates BACK from signing,
+                // the button is enabled again.
                 _state.update { it.copy(isLoading = false) }
 
                 // Step 3: Suspend here until the user finishes interacting with the Signing screen.
@@ -132,8 +138,6 @@ class WithdrawViewModel @Inject constructor(
             } catch (e: Exception) {
                 // Surface any unexpected error (network, serialisation, etc.) to the UI
                 _state.update { it.copy(isLoading = false, error = e.message) }
-            } finally {
-
             }
         }
     }
@@ -153,6 +157,9 @@ class WithdrawViewModel @Inject constructor(
         when (result) {
             is SigningResultEntity.Signed -> {
                 try {
+                    // loading to TRUE again because we are now hitting
+                    // the network to SUBMIT the transaction.
+                    _state.update { it.copy(isLoading = true) }
                     // Submit the transaction using the signature provided by the user
                     val withdrawResult = submitWithdrawUseCase(
                         SubmitWithdrawRequest(
@@ -166,13 +173,11 @@ class WithdrawViewModel @Inject constructor(
                         _state.update {
                             it.copy(
                                 isLoading = false,
-                                isSuccess = true,
                                 amount = "",   // Clear the amount field for the next transaction
                                 error = null
                             )
                         }
                         _effect.send(WithdrawEffect.WithdrawSuccess)
-                        _state.update { it.copy(isSuccess = false) }
                     } else {
                         // Backend rejected the transaction without throwing an exception
                         val errorMsg = "Transaction submission failed. Please try again."

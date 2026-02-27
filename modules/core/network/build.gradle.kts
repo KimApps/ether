@@ -57,4 +57,6 @@ dependencies {
     // hilt
     implementation(libs.bundles.hilt)
     ksp(libs.hilt.compiler)
+    // local modules:
+    implementation(project(":modules:core:local-storage"))
 }

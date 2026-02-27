@@ -1,14 +1,9 @@
-package com.kimapps.signing.layer.data.data_sourses
+package com.kimapps.signing.layer.data.data_sources
 
 import com.kimapps.signing.layer.data.dto_models.SigningResultDto
 import com.kimapps.signing.layer.domain.request_models.SigningRequest
-import com.reown.walletkit.client.Wallet
-import com.reown.walletkit.client.WalletKit
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.suspendCancellableCoroutine
 import javax.inject.Inject
-import kotlin.coroutines.resume
-import kotlin.coroutines.resumeWithException
 
 class SigningRemoteDS @Inject constructor() {
     suspend fun signChallenge(rq: SigningRequest): SigningResultDto {
