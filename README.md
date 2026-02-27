@@ -191,8 +191,11 @@ Provides two storage options:
 |---|---|---|
 | `LocalStorageClient` | `SharedPreferences` | Simple key/value: strings, ints, booleans |
 | `DataStore<Preferences>` | Jetpack DataStore | Coroutine-safe; used by `TokenManager` in `core:network` |
+| `EncryptedStorage` | Jetpack DataStore + Google Tink | Coroutine-safe encrypted key/value store; every value is AES-256-GCM encrypted before being written to DataStore |
 
-Both are provided as singletons through `LocalStorageModule`.
+`EncryptedStorage` delegates encryption to `SecurityManager`, which manages a Tink keyset stored in SharedPreferences and envelope-encrypted by an Android Keystore key. The raw key material never leaves secure hardware.
+
+All three are provided as singletons through `LocalStorageModule`.
 
 ---
 
@@ -353,7 +356,6 @@ The most complex module in the project. Contains:
   signing completes.
 - `SignChallengeUseCase` — delegates Passkey signing to the repository. Injects
   `ErrorLoggerService` and logs any exception before re-throwing it.
-- `SignWithWalletUseCase` — delegates WalletConnect signing to the repository.
 - `SigningResultEntity` — sealed result: `Signed(signature)`, `Cancelled`, `Error(message)`.
 
 #### Data
@@ -454,7 +456,10 @@ WithdrawViewModel
     │  coordinator.requestSignature(rq)  ← suspends here
     ▼
 SigningCoordinator
-    │  emits to signingRequest SharedFlow
+    │  stores CompletableDeferred keyed by challenge
+    ▼
+WithdrawViewModel (before suspending)
+    │  emits WithdrawEffect.NavigateToSigning via Channel
     ▼
 Navigation layer (observer)
     │  navigates to Signing(challenge, operationType)
@@ -490,16 +495,17 @@ Both paths end with:
 
 | Category | Library | Version |
 |---|---|---|
-| Language | Kotlin | 2.2.21 |
-| UI | Jetpack Compose + Material 3 | BOM 2025.12.00 |
+| Language | Kotlin | 2.1.10 |
+| UI | Jetpack Compose + Material 3 | BOM 2026.02.00 |
 | Navigation | Navigation3 (typed routes) | 1.0.1 |
 | DI | Hilt | 2.57.2 |
-| DI annotation processing | KSP | 2.3.3 |
+| DI annotation processing | KSP | 2.1.10-1.0.31 |
 | HTTP (option A) | Retrofit 2 + OkHttp 5 | 3.0.0 / 5.3.2 |
 | HTTP (option B) | Ktor | 3.3.3 |
 | JSON (Retrofit) | Gson | bundled with Retrofit |
 | JSON (Ktor) | kotlinx.serialization | 1.9.0 |
 | Local storage | Jetpack DataStore Preferences | 1.2.0 |
+| Encryption | Google Tink (AES-256-GCM) | 1.20.0 |
 | Database | Room | 2.8.4 |
 | WalletConnect | Reown WalletKit + android-core | 1.6.6 |
 | Coroutines | kotlinx.coroutines | bundled with Kotlin |

@@ -5,6 +5,7 @@ import com.reown.android.CoreClient
 import com.reown.walletkit.client.Wallet
 import com.reown.walletkit.client.WalletKit
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -82,7 +83,10 @@ class WalletConnectManager @Inject constructor(
      * SharedFlow (vs Channel) is used so missed emissions during ViewModel
      * recreation are dropped rather than queued indefinitely.
      */
-    private val _sessionRequests = MutableSharedFlow<Wallet.Model.SessionRequest>()
+    private val _sessionRequests = MutableSharedFlow<Wallet.Model.SessionRequest>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST
+    )
 
     /**
      * Read-only stream of incoming session requests from the paired dApp.

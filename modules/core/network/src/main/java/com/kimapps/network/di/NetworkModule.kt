@@ -1,8 +1,7 @@
 package com.kimapps.network.di
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
 import com.google.gson.Gson
+import com.kimapps.localstorage.storage.EncryptedStorage
 import com.kimapps.network.ApiClient
 import com.kimapps.network.constants.ApiEndpoint
 import com.kimapps.network.constants.NetworkConstant
@@ -51,25 +50,31 @@ import com.kimapps.network.BuildConfig
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
     /**
-     * Provides a singleton TokenManager instance.
-     * TokenManager uses DataStore for secure, asynchronous token storage.
+     * Provides a singleton [TokenManager] instance.
      *
-     * @param dataStore DataStore instance for persistence
-     * @return TokenManager instance
+     * [TokenManager] persists access and refresh tokens via [EncryptedStorage],
+     * which writes AES-256-GCM ciphertext to Jetpack DataStore — ensuring tokens
+     * are never stored in plaintext on disk.
+     *
+     * @param encryptedStorage Encrypted DataStore-backed storage from `core:local-storage`.
+     * @return A singleton [TokenManager] instance.
      */
     @Provides
     @Singleton
-    fun provideTokenManager(dataStore: DataStore<Preferences>): TokenManager {
-        return TokenManager(dataStore)
+    fun provideTokenManager(encryptedStorage: EncryptedStorage): TokenManager {
+        return TokenManager(encryptedStorage)
     }
 
     /**
-     * Provides RefreshTokenInterceptor for automatic token refresh on 401 errors.
-     * Configure the refreshTokenPath based on your API's refresh endpoint.
+     * Provides a singleton [RefreshTokenInterceptor] for automatic token refresh on 401 responses.
      *
-     * @param tokenManager Manages token storage and retrieval
-     * @param gson For parsing JSON responses
-     * @return RefreshTokenInterceptor instance
+     * When OkHttp receives a 401, this interceptor calls the refresh endpoint, saves the
+     * new tokens via [TokenManager], and transparently retries the original request —
+     * the caller never needs to handle token expiry manually.
+     *
+     * @param tokenManager Reads and writes tokens from/to [EncryptedStorage].
+     * @param gson Parses the JSON refresh response to extract the new token pair.
+     * @return A configured [RefreshTokenInterceptor] instance.
      */
     @Provides
     @Singleton
@@ -84,15 +89,19 @@ object NetworkModule {
     }
 
     /**
-     * Provides a singleton instance of [OkHttpClient].
-     * The client is configured with:
-     * - AuthInterceptor: Automatically adds "Authorization: Bearer {token}" header to requests
-     * - RefreshTokenInterceptor: Automatically refreshes expired tokens on 401 errors
-     * - LoggingInterceptor: Logs request and response bodies for debugging
-     * - Timeouts: Connection, read, and write timeouts
+     * Provides a singleton [OkHttpClient] used by the Retrofit implementation.
      *
-     * @param tokenManager Provides the authentication token for requests
-     * @param refreshTokenInterceptor Handles automatic token refresh
+     * Currently only the logging interceptor is active. [AuthInterceptor] and
+     * [RefreshTokenInterceptor] are wired up but commented out pending integration
+     * testing against a live auth endpoint.
+     *
+     * Interceptor order when enabled:
+     * 1. [AuthInterceptor]          — attaches `Authorization: Bearer <token>` to every request.
+     * 2. [RefreshTokenInterceptor]  — intercepts 401 responses, refreshes tokens, retries.
+     * 3. [HttpLoggingInterceptor]   — logs full request/response bodies (DEBUG builds only).
+     *
+     * @param tokenManager Supplies the current access token to [AuthInterceptor].
+     * @param refreshTokenInterceptor Handles 401 responses and token refresh.
      * @return A configured [OkHttpClient] instance.
      */
     @Provides
@@ -101,13 +110,13 @@ object NetworkModule {
         tokenManager: TokenManager,
         refreshTokenInterceptor: RefreshTokenInterceptor
     ): OkHttpClient {
-        // Create auth interceptor that retrieves token dynamically on each request
-        // Using getTokenBlocking() since interceptors cannot suspend functions
+        // AuthInterceptor reads the token synchronously via getTokenBlocking() because
+        // OkHttp interceptors run on a background thread and cannot call suspend functions.
         val authInterceptor = AuthInterceptor(
             tokenProvider = { tokenManager.getTokenBlocking() }
         )
 
-        // Create a logging interceptor to view network traffic in the logcat.
+        // Log full request/response bodies in DEBUG; suppress entirely in release.
         val loggingInterceptor = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) {
                 HttpLoggingInterceptor.Level.BODY
@@ -116,10 +125,9 @@ object NetworkModule {
             }
         }
 
-        // Build the OkHttpClient with interceptors and timeouts.
-        // Order matters: Auth first, then refresh, then logging
+        // TODO: enable authInterceptor and refreshTokenInterceptor once tested
+        //       against a live auth endpoint.
         return OkHttpClient.Builder()
-            // TODO authInterceptor and refreshTokenInterceptor need to be tested
             //.addInterceptor(authInterceptor)            // 1. Add Authorization header
             //.addInterceptor(refreshTokenInterceptor)    // 2. Handle 401 & refresh tokens
             .addInterceptor(loggingInterceptor)         // 3. Log requests/responses
@@ -130,17 +138,17 @@ object NetworkModule {
     }
 
     /**
-     * Provides a singleton instance of [Retrofit].
-     * The Retrofit instance is configured with a base URL, the [OkHttpClient] provided by
-     * [provideOkHttpClient], and a [GsonConverterFactory] for JSON serialization/deserialization.
+     * Provides a singleton [Retrofit] instance backed by [OkHttpClient].
      *
-     * @param okHttpClient The [OkHttpClient] to be used by Retrofit.
+     * Base URL is read from [ApiEndpoint.baseUrl]. JSON serialization uses
+     * [GsonConverterFactory] — the same [Gson] instance provided by [provideGson].
+     *
+     * @param okHttpClient The [OkHttpClient] configured with interceptors and timeouts.
      * @return A configured [Retrofit] instance.
      */
     @Provides
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
-        // Build the Retrofit instance with the base URL, OkHttpClient, and Gson converter.
         return Retrofit.Builder()
             .baseUrl(ApiEndpoint.baseUrl)
             .client(okHttpClient)
@@ -149,25 +157,24 @@ object NetworkModule {
     }
 
     /**
-     * Provides a singleton instance of [RetrofitApiService] (Retrofit interface).
-     * This method creates an implementation of the [RetrofitApiService] interface using the provided [Retrofit] instance.
+     * Provides a singleton [RetrofitApiService] by creating an implementation
+     * of the interface from the [Retrofit] instance.
      *
-     * @param retrofit The [Retrofit] instance to use for creating the API service.
-     * @return An instance of [RetrofitApiService].
+     * @param retrofit The configured [Retrofit] instance.
+     * @return A generated [RetrofitApiService] implementation.
      */
     @Provides
     @Singleton
     fun provideRetrofitApiService(retrofit: Retrofit): RetrofitApiService {
-        // Create the API service from the Retrofit instance.
         return retrofit.create(RetrofitApiService::class.java)
     }
 
     /**
-     * Provides a singleton instance of [RetrofitApiClientImpl].
-     * This wraps the Retrofit service and adapts it to the [ApiClient] interface.
+     * Provides a singleton [RetrofitApiClientImpl] that wraps [RetrofitApiService]
+     * and adapts it to the common [ApiClient] interface.
      *
-     * @param retrofitService The Retrofit service interface
-     * @return An instance of [RetrofitApiClientImpl] that implements [ApiClient]
+     * @param retrofitService The generated Retrofit service interface.
+     * @return An [ApiClient]-compatible [RetrofitApiClientImpl] instance.
      */
     @Provides
     @Singleton
@@ -176,11 +183,12 @@ object NetworkModule {
     }
 
     /**
-     * Provides a singleton instance of [KtorApiClient].
+     * Provides a singleton [KtorApiClient] that wraps Ktor's [HttpClient]
+     * and adapts it to the common [ApiClient] interface.
      *
-     * @param httpClient Ktor's HttpClient instance
-     * @param gson Gson instance for JSON serialization
-     * @return An instance of [KtorApiClient]
+     * @param httpClient The configured Ktor [HttpClient].
+     * @param gson [Gson] instance used for JSON deserialization inside [KtorApiClient].
+     * @return An [ApiClient]-compatible [KtorApiClient] instance.
      */
     @Provides
     @Singleton
@@ -192,16 +200,18 @@ object NetworkModule {
     }
 
     /**
-     * Provides the main [ApiClient] implementation.
+     * Binds the active [ApiClient] implementation used throughout the app.
      *
-     * **SWITCH BETWEEN RETROFIT AND KTOR HERE**
+     * **To switch HTTP library, change the return value here — one line, zero call-site changes:**
+     * - `return ktorApiClient`      ← Ktor (current)
+     * - `return retrofitApiClient`  ← Retrofit
      *
-     * Current: Using Ktor
-     * To switch to Retrofit: Change the parameter from `ktorApiClient` to `retrofitApiClient`
+     * Both implementations are fully constructed by Hilt regardless of which one
+     * is returned, so the unused one adds no runtime overhead beyond instantiation.
      *
-     * @param retrofitApiClient Retrofit implementation (available)
-     * @param ktorApiClient Ktor implementation (currently active)
-     * @return The active [ApiClient] implementation
+     * @param retrofitApiClient Retrofit-backed implementation (available but inactive).
+     * @param ktorApiClient Ktor-backed implementation (currently active).
+     * @return The active [ApiClient] implementation.
      */
     @Provides
     @Singleton
@@ -215,33 +225,35 @@ object NetworkModule {
     }
 
     /**
-     * Provides a singleton instance of [Gson] for JSON serialization and deserialization.
+     * Provides a singleton [Gson] instance for JSON serialization and deserialization.
+     * Used by [RetrofitApiClientImpl] (via [GsonConverterFactory]) and [KtorApiClient].
      *
-     * @return A [Gson] instance.
+     * @return A default [Gson] instance.
      */
     @Provides
     @Singleton
     fun provideGson(): Gson {
-        // Return a new Gson instance.
         return Gson()
     }
 
     /**
-     * Provides a singleton instance of [HttpClient] (Ktor).
-     * The client is configured with:
-     * - DefaultRequest: Sets base URL (like Retrofit's baseUrl) and common headers
-     * - ContentNegotiation: JSON serialization/deserialization
-     * - Auth: Bearer token authentication with automatic token refresh
-     * - Logging: Request/response logging for debugging
-     * - HttpTimeout: Connection and request timeouts
+     * Provides a singleton Ktor [HttpClient] configured for production-style use.
      *
-     * **Important**: The base URL is configured using the DefaultRequest plugin.
-     * This allows data sources to use relative URLs (e.g., "character/2")
-     * which will be resolved to full URLs (e.g., "https://rickandmortyapi.com/api/character/2").
+     * Plugins installed:
+     * - **DefaultRequest** — sets [ApiEndpoint.baseUrl] as the base URL for all requests
+     *   and attaches `Content-Type: application/json` by default.
+     * - **ContentNegotiation** — kotlinx.serialization JSON with lenient parsing and
+     *   unknown-key tolerance, so API additions don't break existing DTOs.
+     * - **Logging** — full body logging on DEBUG builds; silent on release.
+     * - **Auth (bearer)** — `loadTokens` reads the current token pair from [TokenManager]
+     *   before each request; `refreshTokens` delegates to [RefreshTokenInterceptor] on
+     *   a 401 response and retries with the new token pair automatically.
+     * - **HttpTimeout** — applies [NetworkConstant.timeoutSeconds] to request, connect,
+     *   and socket timeouts.
      *
-     * @param tokenManager Provides the authentication token for requests
-     * @param refreshTokenInterceptor Handles automatic token refresh
-     * @return A configured [HttpClient] instance.
+     * @param tokenManager Supplies access and refresh tokens stored in [EncryptedStorage].
+     * @param refreshTokenInterceptor Performs the token refresh call on 401 responses.
+     * @return A fully configured Ktor [HttpClient] instance.
      */
     @Provides
     @Singleton

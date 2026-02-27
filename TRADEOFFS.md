@@ -8,7 +8,7 @@ production path would look like.
 
 ## 1. `CompletableDeferred` in `SigningCoordinator` (cross-module bridge)
 
-**Chosen approach:** `SigningCoordinator` holds a `mutableMapOf<String, CompletableDeferred<SigningResultEntity>>`.
+**Chosen approach:** `SigningCoordinator` holds a `ConcurrentHashMap<String, CompletableDeferred<SigningResultEntity>>`.
 `WithdrawViewModel` calls `requestSignature()`, which suspends on `deferred.await()`.
 `SigningViewModel` calls `provideResult()` to complete the deferred and unblock the caller.
 
@@ -171,21 +171,22 @@ bodies are short-lived (`emit` calls), so this is safe in practice.
 
 ---
 
-## 9. `SharedPreferences` (`LocalStorageClient`) alongside DataStore (`TokenManager`)
+## 9. `SharedPreferences` (`LocalStorageClient`) alongside DataStore (`EncryptedStorage` / `TokenManager`)
 
-**Chosen approach:** `core:local-storage` provides both a `LocalStorageClient`
-(wrapping `SharedPreferences`) and a `DataStore<Preferences>` instance. They
-coexist in the same module.
+**Chosen approach:** `core:local-storage` provides three storage primitives:
+- `LocalStorageClient` — thin wrapper around `SharedPreferences` for simple, non-sensitive key/value data (e.g. UI preferences).
+- `EncryptedStorage` — Jetpack DataStore backed by `SecurityManager` (Google Tink AES-256-GCM, Android Keystore). Every value is encrypted before being written to DataStore and decrypted on read. Raw key material never leaves secure hardware.
+- `DataStore<Preferences>` — also consumed by `TokenManager` in `core:network` for auth token persistence (coroutine-safe, transactional).
 
 **Trade-off:** `SharedPreferences` is synchronous and has no coroutine support.
 `DataStore` is the modern replacement. Having both adds surface area and the
 risk that a developer reaches for the wrong one.
 
-**Reason:** `LocalStorageClient` is a general-purpose key/value store for simple,
-non-sensitive data (e.g. UI preferences). `DataStore` (via `TokenManager`) is
-used for auth tokens, where the coroutine-safe, transactional API matters.
-In production, `SharedPreferences` would be removed and everything migrated to
-`DataStore` or `EncryptedSharedPreferences` for sensitive data.
+**Reason:** `LocalStorageClient` is kept for simple, non-sensitive data where
+coroutine overhead is unnecessary. `EncryptedStorage` handles anything sensitive
+using authenticated encryption (AES-256-GCM), making it safe for secrets beyond
+auth tokens. In production, `SharedPreferences` would be removed and everything
+migrated to `EncryptedStorage` or `DataStore` depending on sensitivity.
 
 ---
 
@@ -205,22 +206,27 @@ in `ErrorLoggerModule`.
 
 ---
 
-## 11. `Parcelable` on `SigningResultEntity`
+## 11. `Parcelable` on `OperationType` and `SigningRequest`
 
-**Chosen approach:** `SigningResultEntity` is `@Parcelize` / `Parcelable`.
+**Chosen approach:** `OperationType` (enum) and `SigningRequest` (data class) are
+annotated with `@Parcelize` / `Parcelable`. `SigningResultEntity` is a plain
+`sealed class` with **no** Parcelable annotation — it travels in memory through
+`CompletableDeferred` and is never put in a `Bundle`.
 
-**Trade-off:** Parcelable adds a small amount of generated boilerplate and
-couples the domain entity to the Android framework (`android.os.Parcelable`).
-Clean Architecture purists would keep domain entities framework-free.
+**Trade-off:** `@Parcelize` on domain types adds a small amount of generated
+boilerplate and couples those types to the Android framework
+(`android.os.Parcelable`). Clean Architecture purists would keep domain entities
+framework-free.
 
-**Reason:** `SigningResultEntity` needs to survive process death if it is ever
-passed across process boundaries (e.g. via a `Bundle`). In the current
-implementation it is never put in a Bundle — it travels through
-`CompletableDeferred` in memory — so `Parcelable` is technically unnecessary
-but costs nothing and future-proofs the type.
+**Reason:** `OperationType` and `SigningRequest` are passed as Navigation3 route
+arguments via `AppRoute.Signing`. Even though Navigation3 uses `@Serializable`
+typed routes (not raw Bundles), Parcelable was kept on these types to
+future-proof them in case they are ever passed via `Bundle` (e.g. saved instance
+state). The cost is negligible given they are small value types.
 
-**Production path:** If strict Clean Architecture is required, move `Parcelable`
-to a separate DTO/model in the presentation layer and map from the domain entity.
+**Production path:** If strict Clean Architecture is required, strip `Parcelable`
+from the domain types and introduce a separate navigation model in the
+presentation layer that handles serialisation independently.
 
 ---
 

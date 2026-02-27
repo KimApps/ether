@@ -7,6 +7,8 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.kimapps.localstorage.storage.LocalStorageClient
+import com.kimapps.localstorage.storage.StorageConstants.DATASTORE_NAME
+import com.kimapps.localstorage.storage.StorageConstants.PREFS_NAME
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -20,9 +22,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object LocalStorageModule {
-
-    private const val PREFS_NAME = "app_preferences"
-    private const val DATASTORE_NAME = "auth_preferences"
 
     /**
      * Provides a singleton SharedPreferences instance.
