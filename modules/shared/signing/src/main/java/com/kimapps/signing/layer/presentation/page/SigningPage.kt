@@ -120,7 +120,9 @@ fun SigningPage(
                 title = { Text("Signing") },
                 navigationIcon = {
                     // Back arrow — returns to the previous screen (e.g. Home)
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        viewModel.onIntent(SigningIntent.OnCancelClicked)
+                    }) {
                         Icon(
                             imageVector = Icons.Default.ArrowBackIosNew,
                             contentDescription = "Back"
