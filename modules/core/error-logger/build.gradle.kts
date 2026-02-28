@@ -37,17 +37,9 @@ android {
 }
 
 dependencies {
-    implementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    testImplementation(libs.bundles.test.unit)
-    androidTestImplementation(libs.bundles.test)
-    // compose
-    implementation(libs.bundles.general)
-    implementation(libs.androidx.compose.material.icons.core)
-    implementation(libs.bundles.compose)
-    // hilt
-    implementation(libs.bundles.hilt)
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
+    implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
+    testImplementation(libs.bundles.test.unit)
 }

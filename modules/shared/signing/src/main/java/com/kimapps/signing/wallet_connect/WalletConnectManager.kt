@@ -1,5 +1,6 @@
 package com.kimapps.signing.wallet_connect
 
+import android.util.Log
 import com.reown.android.Core
 import com.reown.android.CoreClient
 import com.reown.walletkit.client.Wallet
@@ -91,7 +92,7 @@ class WalletConnectManager @Inject constructor(
     /**
      * Read-only stream of incoming session requests from the paired dApp.
      * Each emission represents one `personal_sign` (or similar) call that
-     * the user must Approve or Reject via the [SigningApprovalDialog].
+     * the user must Approve or Reject via the [com.kimapps.signing.layer.presentation.components.SigningApprovalDialog].
      */
     val sessionRequests = _sessionRequests.asSharedFlow()
 
@@ -114,13 +115,13 @@ class WalletConnectManager @Inject constructor(
         CoreClient.Pairing.pair(pairParams) { error ->
             // Pairing can fail if the URI is expired, malformed, or already used.
             // In production, surface this error to the UI via an error state.
-            println("Pairing Error: ${error.throwable.stackTraceToString()}")
+            Log.e("LOG--->", "Pairing Error: ${error.throwable.stackTraceToString()}")
         }
     }
 
     /**
      * Sends a successful JSON-RPC result back to the dApp for the given request.
-     * Called after the user taps "Approve" in the [SigningApprovalDialog].
+     * Called after the user taps "Approve" in the [com.kimapps.signing.layer.presentation.components.SigningApprovalDialog].
      *
      * Uses request.request.id (not a hardcoded value) so the dApp can match
      * the response to the exact request it sent.
@@ -139,14 +140,19 @@ class WalletConnectManager @Inject constructor(
         )
         WalletKit.respondSessionRequest(
             params = response,
-            onSuccess = { println("WalletConnect: request approved successfully") },
-            onError = { error -> println("WalletConnect: approve error ${error.throwable}") }
+            onSuccess = { Log.d("LOG--->", "WalletConnect: request approved successfully") },
+            onError = { error ->
+                Log.e(
+                    "LOG--->",
+                    "WalletConnect: approve error ${error.throwable}"
+                )
+            }
         )
     }
 
     /**
      * Sends a JSON-RPC error back to the dApp for the given request.
-     * Called after the user taps "Reject" in the [SigningApprovalDialog].
+     * Called after the user taps "Reject" in the [com.kimapps.signing.layer.presentation.components.SigningApprovalDialog].
      *
      * Error code 4001 is the EIP-1193 standard code for "User Rejected Request",
      * which well-behaved dApps recognise and handle gracefully.
@@ -164,8 +170,13 @@ class WalletConnectManager @Inject constructor(
         )
         WalletKit.respondSessionRequest(
             params = response,
-            onSuccess = { println("WalletConnect: request rejected") },
-            onError = { error -> println("WalletConnect: reject error ${error.throwable}") }
+            onSuccess = { Log.d("LOG--->", "WalletConnect: request rejected") },
+            onError = { error ->
+                Log.e(
+                    "LOG--->",
+                    "WalletConnect: reject error ${error.throwable}"
+                )
+            }
         )
     }
 
@@ -204,10 +215,11 @@ class WalletConnectManager @Inject constructor(
         )
 
         // proposerPublicKey identifies the specific dApp session being approved
-        val approveParams = Wallet.Params.SessionApprove(sessionProposal.proposerPublicKey, namespaces)
+        val approveParams =
+            Wallet.Params.SessionApprove(sessionProposal.proposerPublicKey, namespaces)
         WalletKit.approveSession(approveParams) { error ->
             // In production, update UI state to show the user that approval failed
-            println("Approve Session Error: $error")
+            Log.e("LOG--->", "Approve Session Error: $error")
         }
     }
 
@@ -219,7 +231,7 @@ class WalletConnectManager @Inject constructor(
      * coroutine so the emission is not cancelled if the ViewModel is recreated
      * (e.g. during a configuration change).
      * The ViewModel collects this and stores it in SigningState.pendingRequest,
-     * causing [SigningApprovalDialog] to appear.
+     * causing [com.kimapps.signing.layer.presentation.components.SigningApprovalDialog] to appear.
      */
     override fun onSessionRequest(
         sessionRequest: Wallet.Model.SessionRequest,
@@ -283,7 +295,7 @@ class WalletConnectManager @Inject constructor(
      * connectivity banner in the UI.
      */
     override fun onConnectionStateChange(state: Wallet.Model.ConnectionState) {
-        println("WalletConnect connection state: $state")
+        Log.d("LOG--->", "WalletConnect connection state: $state")
     }
 
     /**
@@ -292,6 +304,6 @@ class WalletConnectManager @Inject constructor(
      * In production, send to Crashlytics for diagnosis.
      */
     override fun onError(error: Wallet.Model.Error) {
-        println("WalletConnect Error: ${error.throwable}")
+        Log.e("LOG--->", "WalletConnect Error: ${error.throwable}")
     }
 }

@@ -39,7 +39,6 @@ android {
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     testImplementation(libs.bundles.test.unit)
     androidTestImplementation(libs.bundles.test)

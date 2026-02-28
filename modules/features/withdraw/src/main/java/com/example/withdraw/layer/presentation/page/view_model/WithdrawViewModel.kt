@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * ViewModel for the Withdraw screen.
@@ -136,6 +137,7 @@ class WithdrawViewModel @Inject constructor(
                 // Step 4: Handle whatever outcome the signing screen produced
                 handleSigningResult(signingResult, quotation.id)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 // Surface any unexpected error (network, serialisation, etc.) to the UI
                 _state.update { it.copy(isLoading = false, error = e.message) }
             }
@@ -184,6 +186,7 @@ class WithdrawViewModel @Inject constructor(
                         _state.update { it.copy(isLoading = false, error = errorMsg) }
                     }
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     // Network or server error during submission
                     _state.update { it.copy(isLoading = false, error = e.message) }
                 }

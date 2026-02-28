@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * SigningViewModel - Owns all business logic and state for the signing screen.
@@ -159,6 +160,7 @@ class SigningViewModel @Inject constructor(
                 _state.update { it.copy(isLoading = false, challenge = "") }
                 _effect.send(SigningEffect.Close)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 // Surface the error to the UI so the user can read it and retry
                 _state.update {
                     it.copy(
@@ -275,6 +277,7 @@ class SigningViewModel @Inject constructor(
                 _state.update { it.copy(pendingRequest = null, challenge = "", isLoading = false) }
                 _effect.send(SigningEffect.Close)
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
                 coordinator.provideResult(
                     challenge,
                     SigningResultEntity.Error(e.message ?: "Unknown Error")

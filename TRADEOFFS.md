@@ -111,11 +111,15 @@ ECDSA signature in `r + s + v` format.
 
 ---
 
-## 6. Navigation3 (pre-stable, version 1.0.1)
+## 6. Navigation3
 
-**Chosen approach:** Jetpack Navigation3 with `@Serializable` data-class routes
-(`AppRoute.Home`, `AppRoute.Withdraw`, `AppRoute.Signing`). Type-safe arguments
-are passed directly as route properties — no manual string encoding.
+**Chosen approach:** Navigation3 with a custom `List<AppRoute>` back-stack owned
+by `NavigationViewModel` (a `@HiltViewModel`). The back-stack is a
+`mutableStateOf<List<AppRoute>>` — `navigateTo()` appends a route, `pop()`
+drops the last entry, `resetToHome()` replaces the whole stack with
+`[AppRoute.Home]`. `NavDisplay` consumes the back-stack and `entryProvider`
+maps each typed route to its Composable — so the custom stack management and
+Navigation3's rendering/animation are combined rather than being alternatives.
 
 **Alternatives considered:**
 
@@ -123,11 +127,18 @@ are passed directly as route properties — no manual string encoding.
 |---|---|
 | Navigation Component (stable, XML) | XML graph doesn't compose naturally with multi-module Compose |
 | Navigation Compose (stable, `NavController`) | String-based deep links require manual encoding/decoding of arguments; less type-safe |
-| Custom back-stack `List<AppRoute>` with `when` | Considered, but Navigation3 provides `NavDisplay` and `entryProvider` for free |
 
-**Trade-off:** Navigation3 is pre-stable — its API may change before 1.0 GA.
-Chose it anyway to demonstrate awareness of the upcoming standard and to avoid
-the boilerplate of string-based routes.
+**Trade-off:** Navigation3 ecosystem tooling (deep-link testing helpers, IDE
+inspections) is less mature than Navigation Compose. Chose it anyway as it is
+the current Google-recommended approach for typed, Compose-first navigation in
+multi-module projects.
+
+The `List<AppRoute>` back-stack in `NavigationViewModel` gives full programmatic
+control (e.g. `resetToHome()` in one call, no `NavController` reference needed
+outside the ViewModel) while `NavDisplay` + `entryProvider` still handle
+back-gesture interception, enter/exit animations, and type-safe route-to-screen
+mapping. This is the best-of-both approach: custom stack ownership with
+Navigation3's rendering layer on top.
 
 ---
 
@@ -171,12 +182,13 @@ bodies are short-lived (`emit` calls), so this is safe in practice.
 
 ---
 
-## 9. `SharedPreferences` (`LocalStorageClient`) alongside DataStore (`EncryptedStorage` / `TokenManager`)
+## 9. `SharedPreferences` (`LocalStorageClient`) alongside `EncryptedStorage`
 
-**Chosen approach:** `core:local-storage` provides three storage primitives:
+**Chosen approach:** `core:local-storage` provides two storage primitives:
 - `LocalStorageClient` — thin wrapper around `SharedPreferences` for simple, non-sensitive key/value data (e.g. UI preferences).
 - `EncryptedStorage` — Jetpack DataStore backed by `SecurityManager` (Google Tink AES-256-GCM, Android Keystore). Every value is encrypted before being written to DataStore and decrypted on read. Raw key material never leaves secure hardware.
-- `DataStore<Preferences>` — also consumed by `TokenManager` in `core:network` for auth token persistence (coroutine-safe, transactional).
+
+`TokenManager` in `core:network` delegates entirely to `EncryptedStorage` — auth tokens are never written to `SharedPreferences` or a raw `DataStore`.
 
 **Trade-off:** `SharedPreferences` is synchronous and has no coroutine support.
 `DataStore` is the modern replacement. Having both adds surface area and the
@@ -184,9 +196,12 @@ risk that a developer reaches for the wrong one.
 
 **Reason:** `LocalStorageClient` is kept for simple, non-sensitive data where
 coroutine overhead is unnecessary. `EncryptedStorage` handles anything sensitive
-using authenticated encryption (AES-256-GCM), making it safe for secrets beyond
-auth tokens. In production, `SharedPreferences` would be removed and everything
-migrated to `EncryptedStorage` or `DataStore` depending on sensitivity.
+using authenticated encryption (AES-256-GCM).
+
+**Production path:** `SharedPreferences` would be replaced with a more robust
+solution such as Room for structured/relational data, or `EncryptedStorage` if
+the data is sensitive. The `LocalStorageClient` abstraction means call sites
+need no changes — only the underlying implementation is swapped.
 
 ---
 
@@ -206,31 +221,7 @@ in `ErrorLoggerModule`.
 
 ---
 
-## 11. `Parcelable` on `OperationType` and `SigningRequest`
-
-**Chosen approach:** `OperationType` (enum) and `SigningRequest` (data class) are
-annotated with `@Parcelize` / `Parcelable`. `SigningResultEntity` is a plain
-`sealed class` with **no** Parcelable annotation — it travels in memory through
-`CompletableDeferred` and is never put in a `Bundle`.
-
-**Trade-off:** `@Parcelize` on domain types adds a small amount of generated
-boilerplate and couples those types to the Android framework
-(`android.os.Parcelable`). Clean Architecture purists would keep domain entities
-framework-free.
-
-**Reason:** `OperationType` and `SigningRequest` are passed as Navigation3 route
-arguments via `AppRoute.Signing`. Even though Navigation3 uses `@Serializable`
-typed routes (not raw Bundles), Parcelable was kept on these types to
-future-proof them in case they are ever passed via `Bundle` (e.g. saved instance
-state). The cost is negligible given they are small value types.
-
-**Production path:** If strict Clean Architecture is required, strip `Parcelable`
-from the domain types and introduce a separate navigation model in the
-presentation layer that handles serialisation independently.
-
----
-
-## 12. Hilt over manual DI or Koin
+## 11. Hilt over manual DI or Koin
 
 **Chosen approach:** Dagger Hilt with KSP annotation processing throughout all
 modules.

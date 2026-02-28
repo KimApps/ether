@@ -70,7 +70,7 @@ data class SigningState(
     /**
      * Holds the incoming WalletConnect session request sent by the dApp
      * (e.g. a personal_sign call). Non-null value triggers the
-     * [SigningApprovalDialog] to be shown over the screen.
+     * [com.kimapps.signing.layer.presentation.components.SigningApprovalDialog] to be shown over the screen.
      * Cleared back to null after the user approves or rejects the request.
      */
     val pendingRequest: Wallet.Model.SessionRequest? = null,

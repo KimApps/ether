@@ -1,6 +1,6 @@
 package com.kimapps.signing.layer.presentation.page
 
-import SigningApprovalDialog
+import com.kimapps.signing.layer.presentation.components.SigningApprovalDialog
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement

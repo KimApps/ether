@@ -2,6 +2,7 @@ package com.kimapps.network.ktor
 
 import com.google.gson.Gson
 import com.kimapps.network.ApiClient
+import com.kimapps.network.error.AppNetworkException
 import com.kimapps.network.models.ApiResponse
 import io.ktor.client.HttpClient
 import io.ktor.client.request.delete
@@ -57,6 +58,7 @@ class KtorApiClient @Inject constructor(
             }
             response.toApiResponseOrThrow()
         } catch (e: Throwable) {
+            if (e is AppNetworkException) throw e
             throw KtorNetworkException.mapToAppException(e)
         }
     }
@@ -83,6 +85,7 @@ class KtorApiClient @Inject constructor(
             }
             response.toApiResponseOrThrow()
         } catch (e: Throwable) {
+            if (e is AppNetworkException) throw e
             throw KtorNetworkException.mapToAppException(e)
         }
     }
@@ -109,6 +112,7 @@ class KtorApiClient @Inject constructor(
             }
             response.toApiResponseOrThrow()
         } catch (e: Throwable) {
+            if (e is AppNetworkException) throw e
             throw KtorNetworkException.mapToAppException(e)
         }
     }
@@ -135,6 +139,7 @@ class KtorApiClient @Inject constructor(
             }
             response.toApiResponseOrThrow()
         } catch (e: Throwable) {
+            if (e is AppNetworkException) throw e
             throw KtorNetworkException.mapToAppException(e)
         }
     }
@@ -161,6 +166,7 @@ class KtorApiClient @Inject constructor(
             }
             response.toApiResponseOrThrow()
         } catch (e: Throwable) {
+            if (e is AppNetworkException) throw e
             throw KtorNetworkException.mapToAppException(e)
         }
     }

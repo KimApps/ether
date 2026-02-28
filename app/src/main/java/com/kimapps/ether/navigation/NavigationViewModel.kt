@@ -16,7 +16,9 @@ class NavigationViewModel @Inject constructor() : ViewModel() {
 
     fun navigateTo(route: AppRoute) {
         // add route to backstack
-        backstack = backstack + route
+        if (backstack.last() != route) {
+            backstack = backstack + route
+        }
     }
 
     fun pop() {
