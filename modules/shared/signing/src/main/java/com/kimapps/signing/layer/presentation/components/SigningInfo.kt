@@ -20,7 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
  *                      so it stands out as the most important piece of information.
  */
 @Composable
-fun SigningHeader(operationName: String) {
+fun SigningInfo(operationName: String) {
     // Centre-align both texts so the header reads as a cohesive title block
     Column(
         horizontalAlignment = Alignment.CenterHorizontally

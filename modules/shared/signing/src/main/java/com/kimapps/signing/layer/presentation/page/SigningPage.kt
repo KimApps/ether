@@ -8,9 +8,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBackIosNew
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,7 +30,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kimapps.signing.layer.domain.enums.OperationType
 import com.kimapps.signing.layer.presentation.components.ChallengeCard
-import com.kimapps.signing.layer.presentation.components.SigningHeader
+import com.kimapps.signing.layer.presentation.components.SigningInfo
 import com.kimapps.signing.layer.presentation.components.WalletConnectSection
 import com.kimapps.signing.layer.presentation.page.view_model.SigningEffect
 import com.kimapps.signing.layer.presentation.page.view_model.SigningIntent
@@ -109,7 +115,20 @@ fun SigningPage(
     // ─────────────────────────────────────────────
 
     Scaffold(
-        topBar = { /* ... keep top bar ... */ }
+        topBar = {
+            TopAppBar(
+                title = { Text("Signing") },
+                navigationIcon = {
+                    // Back arrow — returns to the previous screen (e.g. Home)
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowBackIosNew,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
+            )
+        }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -120,7 +139,7 @@ fun SigningPage(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             // Operation title (e.g. "WITHDRAWAL")
-            SigningHeader(state.operationType.name)
+            SigningInfo(state.operationType.name)
 
             // Truncated challenge preview so the user knows what they are signing
             ChallengeCard(state.challenge)
